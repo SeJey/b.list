@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Profile feature smoke test</title></head>
+<body>
+  <button data-profile-tab="overview" aria-controls="test-overview">Overview</button>
+  <button data-profile-tab="stats" aria-controls="test-stats">Stats</button>
+  <section id="test-overview" data-profile-panel="overview"></section>
+  <section id="test-stats" data-profile-panel="stats" class="hidden"></section>
+  <pre id="result">RUNNING</pre>
+  <script type="module">
+    const result = document.getElementById('result');
+    try {
+      const [{ calculateProfileStats }, { setupProfileTabs }, activityModule, listActionsModule, metadataModule] = await Promise.all([
+        import('./utils/profileStats.js'),
+        import('./ui/pages/profilePage.js'),
+        import('./ui/pages/activityPage.js'),
+        import('./ui/controllers/media/listActionsController.js'),
+        import('./app/profileMetadata.js')
+      ]);
+
+      const stats = calculateProfileStats([
+        { type: 'movie', status: 'watched', runtime: 120, rating: 80, genres: [{ name: 'Drama' }], cast: [{ id: 1, name: 'Actor A' }], directors: [{ id: 2, name: 'Director A' }] },
+        { type: 'series', status: 'watching', averageRuntime: 45, episodesWatched: { s1: 4 }, rating: 90, genres: [{ name: 'Drama' }, { name: 'Mystery' }], cast: [{ id: 1, name: 'Actor A' }] },
+        { type: 'movie', status: 'planning', runtime: 200, genres: [{ name: 'Action' }] }
+      ]);
+      if (stats.totalMinutes !== 300) throw new Error(`Expected 300 minutes, received ${stats.totalMinutes}`);
+      if (stats.episodesWatched !== 4) throw new Error('Episode calculation failed');
+      if (stats.topGenres[0]?.name !== 'Drama') throw new Error('Genre ranking failed');
+      if (stats.topActor?.name !== 'Actor A' || stats.topActor.appearances !== 2) throw new Error('Actor ranking failed');
+      if (!activityModule.createActivityPageController || !listActionsModule.createMediaListActionsController || !metadataModule.createProfileMetadataBackfill) throw new Error('Feature module export missing');
+
+      setupProfileTabs();
+      document.querySelector('[data-profile-tab="stats"]').click();
+      if (document.getElementById('test-stats').hidden) throw new Error('Stats tab did not open');
+      if (!document.getElementById('test-overview').hidden) throw new Error('Overview tab did not close');
+      result.textContent = 'PROFILE_FEATURE_TEST_PASS';
+    } catch (error) {
+      result.textContent = `PROFILE_FEATURE_TEST_FAIL: ${error.stack || error.message}`;
+    }
+  </script>
+</body>
+</html>

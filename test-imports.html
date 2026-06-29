@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Import Test</title>
+</head>
+<body>
+    <h1>Testing module imports...</h1>
+    <div id="status">Loading...</div>
+    
+    <script type="module">
+        try {
+            // Test TVDB imports
+            const tvdbModule = await import('./api/tvdb.js');
+            console.log('TVDB module loaded:', tvdbModule);
+            
+            // Test main.js imports
+            const mainModule = await import('./main.js');
+            console.log('Main module loaded successfully');
+            
+            document.getElementById('status').innerHTML = '<span style="color: green;">✓ All modules loaded successfully!</span>';
+        } catch (error) {
+            console.error('Module loading error:', error);
+            document.getElementById('status').innerHTML = '<span style="color: red;">✗ Error: ' + error.message + '</span>';
+            document.body.innerHTML += '<pre>' + error.stack + '</pre>';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>blist - Your Movie Universe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="text-gray-200">
+
+    <!-- App Container -->
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-700">
+            <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center space-x-8">
+                        <a href="#" id="logo" class="flex items-center">
+                            <img id="logo-img" src="assets/blist-logo.png" alt="blist logo" class="h-8 w-auto" />
+                            <svg id="logo-fallback" class="h-8 w-auto hidden" viewBox="0 0 120 24" role="img" aria-label="blist" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                                <defs>
+                                    <linearGradient id="g1" x1="0" x2="1">
+                                        <stop offset="0%" stop-color="#38bdf8" />
+                                        <stop offset="100%" stop-color="#7c3aed" />
+                                    </linearGradient>
+                                </defs>
+                                <rect width="120" height="24" fill="none" />
+                                <text x="0" y="17" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue'" font-size="16" font-weight="700" fill="url(#g1)">blist</text>
+                            </svg>
+                            <span class="sr-only">blist</span>
+                        </a>
+                        <div class="hidden md:flex items-baseline space-x-4">
+                            <a href="#" id="nav-home" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-sky-400 transition-colors duration-200 active">Home</a>
+                            <a href="#" id="nav-my-list" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-sky-400 transition-colors duration-200 hidden">My List</a>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <!-- Profile Icon with Dropdown -->
+                        <div id="profile-menu-container" class="relative hidden">
+                            <button id="profile-icon-btn" class="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-purple-600 text-white font-bold text-sm flex items-center justify-center hover:opacity-90 transition-opacity" aria-label="Profile menu" aria-expanded="false">
+                                <span id="profile-initials">U</span>
+                            </button>
+                            <div id="profile-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-md shadow-lg z-50">
+                                <a href="#" id="profile-menu-profile" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 first:rounded-t-md">Profile</a>
+                                <a href="#" id="profile-menu-settings" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Settings</a>
+                                <a href="#" id="profile-menu-notifications" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Notifications</a>
+                                <hr class="border-gray-700">
+                                <button id="profile-menu-logout" type="button" class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 last:rounded-b-md">Logout</button>
+                            </div>
+                        </div>
+                        <div id="auth-container" class="relative">
+                            <!-- Login/Logout button will be rendered here by JS -->
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Notification Bar -->
+        <div id="notification-bar" class="hidden bg-red-600 text-white text-center p-2"></div>
+
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Home Page View -->
+            <div id="home-page">
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+                    <h1 class="text-3xl font-bold text-white">Discover Movies</h1>
+                    <form id="home-search-form" class="w-full md:max-w-xs">
+                        <input type="search" id="home-search-input" placeholder="Search all movies..." class="w-full bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    </form>
+                </div>
+
+                <div id="movie-night-generator" class="my-4 p-3 bg-gray-800 rounded-lg text-center max-w-3xl mx-auto">
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-lg font-semibold text-white m-0">Ask AI for Movie Ideas</h3>
+                        <form id="ask-ai-form" class="flex items-center gap-2 flex-1 max-w-xl">
+                            <input type="text" id="ai-prompt-input" placeholder="e.g., 'Suggest a good sci-fi movie from the 80s'" class="flex-1 bg-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" required>
+                            <button type="submit" class="gemini-btn text-white font-semibold py-1.5 px-3 rounded-md text-sm transition-opacity hover:opacity-90">
+                                ✨ Ask AI
+                            </button>
+                        </form>
+                    </div>
+                    <div id="movie-night-result" class="mt-2 text-left text-gray-300 text-sm max-h-28 overflow-auto"></div>
+                </div>
+                
+                <h2 id="trending-today-title" class="text-2xl font-bold text-white mb-4">Trending</h2>
+                <div id="trending-today-movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                    <!-- Movie cards will be rendered here by JS -->
+                </div>
+
+                <!-- Actor tooltip -->
+                <div id="actor-tooltip" class="hidden fixed z-50 max-w-xs p-3 bg-gray-800 rounded-md shadow-lg text-sm text-gray-200"></div>
+                 
+                <h2 id="home-page-title" class="text-2xl font-bold text-white mt-12 mb-4">Trending This Week</h2>
+                <div id="home-movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                    <!-- Movie cards will be rendered here by JS -->
+                </div>
+            </div>
+            <!-- Actor profile page -->
+            <div id="actor-page" class="hidden max-w-3xl mx-auto bg-gray-800 p-6 rounded-lg"></div>
+
+            <!-- My List Page View -->
+            <div id="my-list-page" class="hidden">
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+                    <h1 id="my-list-title" class="text-3xl font-bold text-white">My Movie List</h1>
+                    <button type="button" id="ai-recommendations-btn" class="gemini-btn text-white font-semibold py-2 px-4 rounded-md text-sm transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+                        ✨ Get AI Recommendations
+                    </button>
+                    <form id="my-list-search-form" class="w-full md:max-w-xs">
+                        <input type="search" id="my-list-search-input" placeholder="Search your list..." class="w-full bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    </form>
+                </div>
+                <div id="ai-recommendations-container" class="hidden mb-8">
+                    <h2 class="text-2xl font-bold text-white mb-4">Recommended For You</h2>
+                    <div id="ai-recommendations-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                    </div>
+                </div>
+
+                <div id="my-list-filters" class="flex flex-wrap items-center gap-2 mb-6"></div>
+                <div id="my-list-movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                </div>
+                <div id="my-list-empty-state" class="hidden text-center py-16">
+                    <p class="text-gray-400">Your list is empty.</p>
+                    <p class="text-gray-500 mt-2">Add movies from the home page to see them here.</p>
+                </div>
+            </div>
+            <div id="loader" class="text-center py-16 hidden">
+                <p class="text-gray-400 text-lg">Loading movies...</p>
+            </div>
+
+            <!-- Actor Modal -->
+            <div id="actor-modal" style="z-index:99999;" class="fixed inset-0 hidden items-center justify-center p-4 modal-backdrop" aria-modal="true" role="dialog">
+                <div id="actor-modal-content" tabindex="-1" class="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto p-6">
+                </div>
+            </div>
+
+            <!-- Settings Page View -->
+            <div id="settings-page" class="hidden max-w-2xl mx-auto bg-gray-800 p-8 rounded-lg">
+                <h1 class="text-3xl font-bold text-white mb-6">Settings</h1>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-300 mb-1">Theme</label>
+                        <select id="theme-select" class="w-full bg-gray-700 text-white rounded-md px-3 py-2">
+                            <option value="default">Default (current)</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-300 mb-1">Rating System</label>
+                        <select id="rating-system-select" class="w-full bg-gray-700 text-white rounded-md px-3 py-2">
+                            <option value="1-10">1-10 numeric</option>
+                            <option value="1-100">1-100 numeric</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Profile Page View -->
+            <div id="user-profile-page" class="hidden max-w-3xl mx-auto bg-gray-800 p-8 rounded-lg">
+                <h1 class="text-3xl font-bold text-white mb-6">Your Profile</h1>
+                <div id="user-profile-content" class="space-y-6">
+                    <div class="bg-gray-700 p-6 rounded-lg">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div id="profile-avatar-large" class="w-16 h-16 rounded-full bg-gradient-to-br from-sky-500 to-purple-600 text-white font-bold text-2xl flex items-center justify-center">
+                                <span id="profile-initials-large">U</span>
+                            </div>
+                            <div>
+                                <h2 id="profile-user-name" class="text-xl font-bold text-white">User Name</h2>
+                                <p id="profile-user-email" class="text-sm text-gray-400">user@email.com</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-700 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-white mb-4">Stats</h3>
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p id="stat-movies-watched" class="text-2xl font-bold text-sky-400">0</p>
+                                <p class="text-sm text-gray-400">Movies Watched</p>
+                            </div>
+                            <div>
+                                <p id="stat-movies-watching" class="text-2xl font-bold text-sky-400">0</p>
+                                <p class="text-sm text-gray-400">Watching</p>
+                            </div>
+                            <div>
+                                <p id="stat-movies-planned" class="text-2xl font-bold text-sky-400">0</p>
+                                <p class="text-sm text-gray-400">Planned</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-700 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold text-white mb-4">Watch History Calendar</h3>
+                        <p class="text-gray-400 text-sm">Coming soon: View your watching activity over time</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications Page View -->
+            <div id="notifications-page" class="hidden max-w-2xl mx-auto bg-gray-800 p-8 rounded-lg">
+                <h1 class="text-3xl font-bold text-white mb-6">Notifications</h1>
+                <div id="notifications-content" class="space-y-4">
+                    <div class="bg-gray-700 p-4 rounded-lg border-l-4 border-sky-500">
+                        <p class="text-white font-semibold">New Recommendations</p>
+                        <p class="text-sm text-gray-400">Fresh movie suggestions based on your list</p>
+                        <p class="text-xs text-gray-500 mt-2">3 hours ago</p>
+                    </div>
+                    <div class="bg-gray-700 p-4 rounded-lg border-l-4 border-purple-500">
+                        <p class="text-white font-semibold">Popular Release</p>
+                        <p class="text-sm text-gray-400">A new movie you might enjoy is now available</p>
+                        <p class="text-xs text-gray-500 mt-2">1 day ago</p>
+                    </div>
+                    <p class="text-center text-gray-400 text-sm mt-8">No more notifications</p>
+                </div>
+            </div>
+
+            <!-- Login Required View -->
+            <div id="login-required-page" class="hidden text-center py-16 max-w-lg mx-auto bg-gray-800 p-8 rounded-lg">
+                <h2 class="text-2xl font-bold text-white mb-4">Login Required</h2>
+                <p class="text-gray-400 mb-6">You need to log in to view this page and save your movie list.</p>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-900 border-t border-gray-700 mt-auto">
+            <div class="container mx-auto py-4 px-4 sm:px-6 lg:px-8 text-center text-gray-500 text-sm">
+                <p>&copy; 2025 blist. All rights reserved.</p>
+                <p class="mt-2 text-xs text-gray-600">Data provided by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-300 transition-colors">The Movie Database (TMDb)</a> and <a href="https://www.thetvdb.com/" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-300 transition-colors">TheTVDB</a></p>
+            </div>
+        </footer>
+
+        <!-- Movie Detail Modal -->
+        <div id="movie-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-6 modal-backdrop">
+            <div id="modal-content" class="bg-gray-800 rounded-lg shadow-xl w-full max-w-5xl md:h-[720px] max-h-[92vh] flex flex-col md:flex-row overflow-hidden relative p-0">
+            </div>
+        </div>
+    </div>
+
+    <!-- Runtime config injection (config.js should handle this in new structure) -->
+    <script src="config.js"></script>
+    <script type="module" src="main.js"></script>
+</body>
+</html>

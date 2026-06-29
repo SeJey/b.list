@@ -1,0 +1,221 @@
+export function getDomElements(root = document) {
+  const byId = (id) => root.getElementById(id);
+
+  return {
+    nav: {
+      home: byId('nav-home'),
+      myList: byId('nav-my-list'),
+      browse: byId('nav-browse'),
+      movies: byId('browse-menu-movies'),
+      series: byId('browse-menu-series'),
+      forum: byId('nav-forum')
+    },
+    pages: {
+      home: byId('home-page'),
+      search: byId('search-page'),
+      myList: byId('my-list-page'),
+      browseMovies: byId('browse-movies-page'),
+      browseSeries: byId('browse-series-page'),
+      playlists: byId('playlists-page'),
+      forum: byId('forum-page'),
+      recommendations: byId('recommendations-page'),
+      profile: byId('profile-page'),
+      actor: byId('actor-page'),
+      movie: byId('movie-page'),
+      settings: byId('settings-page'),
+      loginRequired: byId('login-required-page'),
+      userProfile: byId('user-profile-page'),
+      notifications: byId('notifications-page'),
+      auth: byId('auth-page')
+    },
+    browseMenu: {
+      dropdown: byId('browse-dropdown'),
+      movies: byId('browse-menu-movies'),
+      series: byId('browse-menu-series'),
+      actors: byId('browse-menu-actors'),
+      directors: byId('browse-menu-directors')
+    },
+    home: {
+      searchForm: byId('home-search-form'),
+      searchInput: byId('home-search-input'),
+      trendingCarousel: byId('trending-carousel'),
+      trendingPrev: byId('trending-prev'),
+      trendingNext: byId('trending-next'),
+      upcomingMoviesCarousel: byId('upcoming-movies-carousel'),
+      upcomingMoviesPrev: byId('upcoming-movies-prev'),
+      upcomingMoviesNext: byId('upcoming-movies-next'),
+      grid: byId('home-movie-grid'),
+      topSeriesGrid: byId('top-series-grid'),
+      featuredHero: byId('featured-hero'),
+      featuredBackdrop: byId('featured-backdrop'),
+      featuredTitle: byId('featured-title'),
+      featuredMeta: byId('featured-meta'),
+      featuredOverview: byId('featured-overview'),
+      featuredDetailsBtn: byId('featured-details-btn'),
+      featuredWatchlistBtn: byId('featured-watchlist-btn'),
+      guestCta: byId('guest-home-cta'),
+      guestJoinBtn: byId('guest-join-btn'),
+      recommendationsLink: byId('home-recommendations-link'),
+      publicView: byId('home-public-view'),
+      loggedInView: byId('home-logged-in-view'),
+      moviesInProgress: byId('home-movies-in-progress'),
+      seriesInProgress: byId('home-series-in-progress')
+    },
+    search: {
+      form: byId('search-page-form'),
+      input: byId('search-page-input'),
+      title: byId('search-page-title'),
+      resultsGrid: byId('search-results-grid'),
+      emptyState: byId('search-empty-state')
+    },
+    myList: {
+      grid: byId('my-list-movie-grid'),
+      filters: byId('my-list-filters'),
+      searchInput: byId('my-list-search-input'),
+      sortRatingBtn: byId('my-list-sort-rating-btn')
+    },
+    browseMovies: {
+      searchForm: byId('movie-browse-search-form'),
+      searchInput: byId('movie-browse-search-input'),
+      genreFilterBtn: byId('movie-genre-filter-btn'),
+      genreDropdown: byId('movie-genre-dropdown'),
+      keywordsFilterBtn: byId('movie-keywords-filter-btn'),
+      keywordsDropdown: byId('movie-keywords-dropdown'),
+      ratingFilterBtn: byId('movie-rating-filter-btn'),
+      ratingDropdown: byId('movie-rating-dropdown'),
+      activeFilters: byId('movie-active-filters'),
+      filterBadges: byId('movie-filter-badges'),
+      clearAllBtn: byId('movie-clear-all-btn'),
+      grid: byId('movie-browse-grid'),
+      resultsTitle: byId('movie-browse-results-title'),
+      recommendationsBtn: byId('movie-recommendations-btn'),
+      recommendationsSection: byId('movie-recommendations-section')
+    },
+    browseSeries: {
+      searchForm: byId('series-browse-search-form'),
+      searchInput: byId('series-browse-search-input'),
+      genreFilterBtn: byId('series-genre-filter-btn'),
+      genreDropdown: byId('series-genre-dropdown'),
+      statusFilterBtn: byId('series-status-filter-btn'),
+      statusDropdown: byId('series-status-dropdown'),
+      activeFilters: byId('series-active-filters'),
+      filterBadges: byId('series-filter-badges'),
+      clearAllBtn: byId('series-clear-all-btn'),
+      tagQuickPicks: byId('series-tag-quick-picks'),
+      grid: byId('series-browse-grid'),
+      resultsTitle: byId('series-browse-results-title')
+    },
+    recommendations: {
+      aiButton: byId('ai-recommendations-btn'),
+      container: byId('ai-recommendations-container'),
+      grid: byId('ai-recommendations-grid'),
+      emptyState: byId('recommendations-empty'),
+      userPlaylistsSection: byId('user-playlists-section'),
+      userPlaylistsGrid: byId('user-playlists-grid'),
+      userPlaylistsEmpty: byId('user-playlists-empty'),
+      genreGrid: byId('genre-grid'),
+      genreMoviesSection: byId('genre-movies-section'),
+      genreMoviesGrid: byId('genre-movies-grid'),
+      genreMoviesTitle: byId('genre-movies-title')
+    },
+    playlists: {
+      grid: byId('playlists-grid'),
+      empty: byId('playlists-empty'),
+      createBtn: byId('create-playlist-btn'),
+      createMainBtn: byId('create-playlist-main-btn'),
+      modal: byId('create-playlist-modal'),
+      form: byId('create-playlist-form'),
+      nameInput: byId('playlist-name'),
+      descriptionInput: byId('playlist-description'),
+      publicCheckbox: byId('playlist-public'),
+      closeModalBtn: byId('close-playlist-modal'),
+      cancelBtn: byId('cancel-playlist-btn')
+    },
+    activity: {
+      tabs: {
+        activity: byId('activity-tab-activity'),
+        following: byId('activity-tab-following'),
+        global: byId('activity-tab-global')
+      },
+      homeTabs: {
+        activity: byId('home-activity-tab-activity'),
+        following: byId('home-activity-tab-following'),
+        global: byId('home-activity-tab-global')
+      },
+      content: byId('activity-content'),
+      homeContent: byId('home-activity-content')
+    },
+    auth: {
+      container: byId('auth-container'),
+      profileMenuContainer: byId('profile-menu-container'),
+      profileIconBtn: byId('profile-icon-btn'),
+      profileInitials: byId('profile-initials'),
+      profileAvatarLarge: byId('profile-avatar-large'),
+      profileInitialsLarge: byId('profile-initials-large'),
+      profileUserName: byId('profile-user-name'),
+      profileUserEmail: byId('profile-user-email'),
+      profileBio: byId('profile-bio')
+    },
+    ui: {
+      loader: byId('loader')
+    }
+  };
+}
+
+export function getPageElements(elements) {
+  return {
+    trendingCarousel: elements.home.trendingCarousel,
+    upcomingMoviesCarousel: elements.home.upcomingMoviesCarousel,
+    homeGrid: elements.home.grid,
+    topSeriesGrid: elements.home.topSeriesGrid,
+    featuredHero: elements.home.featuredHero,
+    featuredBackdrop: elements.home.featuredBackdrop,
+    featuredTitle: elements.home.featuredTitle,
+    featuredMeta: elements.home.featuredMeta,
+    featuredOverview: elements.home.featuredOverview,
+    featuredDetailsBtn: elements.home.featuredDetailsBtn,
+    featuredWatchlistBtn: elements.home.featuredWatchlistBtn,
+    loader: elements.ui.loader,
+    trendingPrev: elements.home.trendingPrev,
+    trendingNext: elements.home.trendingNext,
+    upcomingMoviesPrev: elements.home.upcomingMoviesPrev,
+    upcomingMoviesNext: elements.home.upcomingMoviesNext,
+    homeSearchForm: elements.home.searchForm,
+    homeSearchInput: elements.home.searchInput,
+    searchPageForm: elements.search.form,
+    searchPageInput: elements.search.input,
+    searchPageTitle: elements.search.title,
+    searchResultsGrid: elements.search.resultsGrid,
+    searchEmptyState: elements.search.emptyState,
+    myListGrid: elements.myList.grid,
+    myListFilters: elements.myList.filters,
+    myListSearchInput: elements.myList.searchInput,
+    myListSortRatingBtn: elements.myList.sortRatingBtn,
+    movieBrowseGrid: elements.browseMovies.grid,
+    movieGenreDropdown: elements.browseMovies.genreDropdown,
+    movieKeywordsDropdown: elements.browseMovies.keywordsDropdown,
+    movieRatingDropdown: elements.browseMovies.ratingDropdown,
+    movieBrowseResultsTitle: elements.browseMovies.resultsTitle,
+    movieRecommendationsSection: elements.browseMovies.recommendationsSection,
+    seriesBrowseGrid: elements.browseSeries.grid,
+    seriesGenreDropdown: elements.browseSeries.genreDropdown,
+    seriesStatusDropdown: elements.browseSeries.statusDropdown,
+    seriesActiveFilters: elements.browseSeries.activeFilters,
+    seriesFilterBadges: elements.browseSeries.filterBadges,
+    seriesTagQuickPicks: elements.browseSeries.tagQuickPicks,
+    seriesBrowseResultsTitle: elements.browseSeries.resultsTitle,
+    aiRecommendationsGrid: elements.recommendations.grid,
+    aiRecommendationsContainer: elements.recommendations.container,
+    recommendationsEmptyState: elements.recommendations.emptyState,
+    aiRecommendationsBtn: elements.recommendations.aiButton,
+    userPlaylistsSection: elements.recommendations.userPlaylistsSection,
+    userPlaylistsGrid: elements.recommendations.userPlaylistsGrid,
+    userPlaylistsEmpty: elements.recommendations.userPlaylistsEmpty,
+    playlistsGrid: elements.playlists.grid,
+    playlistsEmpty: elements.playlists.empty,
+    genreGrid: elements.recommendations.genreGrid,
+    genreMoviesSection: elements.recommendations.genreMoviesSection,
+    genreMoviesGrid: elements.recommendations.genreMoviesGrid,
+    genreMoviesTitle: elements.recommendations.genreMoviesTitle
+  };
+}

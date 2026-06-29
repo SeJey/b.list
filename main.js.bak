@@ -1,0 +1,3043 @@
+import './config.js';
+import { loadSettings, saveSettings, applyTheme, settings } from './settings.js';
+import { setupAuthStateListener, handleLogin, handleLogout } from './auth.js';
+import { fetchTMDb, IMAGE_BASE_URL } from './api/tmdb.js';
+import { searchTVSeries, getSeriesFilter, getTVDBGenres, getSeriesStatuses, getSeriesDetails, getSeriesTranslation, getSeriesSeasonEpisodeCount, getSeasonDetails, getEpisodeDetails } from './api/tvdb.js';
+import { callGeminiApi } from './api/ai.js';
+import { getUserMoviesCollection, updateMovieStatus, removeMovieFromList, updateAggregateRating, subscribeToUserMovies, updateUserRating, updateWatchTime, updateEpisodesWatched, createPlaylist, subscribeToUserPlaylists, deletePlaylist, addMovieToPlaylist, removeMovieFromPlaylist } from './storage.js';
+import { showNotification, renderMovieGrid, openMovieModal, closeMovieModal, showActorPage, openActorModal, closeActorModal } from './ui/ui.js';
+
+// --- DOM elements ---
+const navLinks = {
+  home: document.getElementById('nav-home'),
+  myList: document.getElementById('nav-my-list'),
+  browse: document.getElementById('nav-browse'),
+};
+const browseDropdown = document.getElementById('browse-dropdown');
+const browseMenuMovies = document.getElementById('browse-menu-movies');
+const browseMenuSeries = document.getElementById('browse-menu-series');
+const browseMenuActors = document.getElementById('browse-menu-actors');
+const browseMenuDirectors = document.getElementById('browse-menu-directors');
+const homePage = document.getElementById('home-page');
+const myListPage = document.getElementById('my-list-page');
+const browseMoviesPage = document.getElementById('browse-movies-page');
+const browseSeriesPage = document.getElementById('browse-series-page');
+const playlistsPage = document.getElementById('playlists-page');
+const recommendationsPage = document.getElementById('recommendations-page');
+const profilePage = document.getElementById('profile-page');
+const actorPage = document.getElementById('actor-page');
+const settingsPage = document.getElementById('settings-page');
+const loginRequiredPage = document.getElementById('login-required-page');
+const homeSearchForm = document.getElementById('home-search-form');
+const homeSearchInput = document.getElementById('home-search-input');
+const myListSearchForm = document.getElementById('my-list-search-form');
+const myListSearchInput = document.getElementById('my-list-search-input');
+// Home carousel elements
+const trendingCarousel = document.getElementById('trending-carousel');
+const trendingPrev = document.getElementById('trending-prev');
+const trendingNext = document.getElementById('trending-next');
+const upcomingMoviesCarousel = document.getElementById('upcoming-movies-carousel');
+const upcomingMoviesPrev = document.getElementById('upcoming-movies-prev');
+const upcomingMoviesNext = document.getElementById('upcoming-movies-next');
+const homeGrid = document.getElementById('home-movie-grid');
+const topSeriesGrid = document.getElementById('top-series-grid');
+const myListGrid = document.getElementById('my-list-movie-grid');
+const myListFilters = document.getElementById('my-list-filters');
+const myListEmptyState = document.getElementById('my-list-empty-state');
+const aiRecommendationsBtn = document.getElementById('ai-recommendations-btn');
+const aiRecommendationsContainer = document.getElementById('ai-recommendations-container');
+const aiRecommendationsGrid = document.getElementById('ai-recommendations-grid');
+const recommendationsEmptyState = document.getElementById('recommendations-empty');
+// Browse Movies Page Elements
+const movieBrowseSearchForm = document.getElementById('movie-browse-search-form');
+const movieBrowseSearchInput = document.getElementById('movie-browse-search-input');
+const movieGenreFilterBtn = document.getElementById('movie-genre-filter-btn');
+const movieGenreDropdown = document.getElementById('movie-genre-dropdown');
+const movieKeywordsFilterBtn = document.getElementById('movie-keywords-filter-btn');
+const movieKeywordsDropdown = document.getElementById('movie-keywords-dropdown');
+const movieRatingFilterBtn = document.getElementById('movie-rating-filter-btn');
+const movieRatingDropdown = document.getElementById('movie-rating-dropdown');
+const movieActiveFilters = document.getElementById('movie-active-filters');
+const movieFilterBadges = document.getElementById('movie-filter-badges');
+const movieClearAllBtn = document.getElementById('movie-clear-all-btn');
+const movieBrowseResults = document.getElementById('movie-browse-results');
+const movieBrowseResultsTitle = document.getElementById('movie-browse-results-title');
+const movieBrowseGrid = document.getElementById('movie-browse-grid');
+const movieRecommendationsSection = document.getElementById('movie-recommendations-section');
+const movieRecommendationsBtn = document.getElementById('movie-recommendations-btn');
+const movieRecommendationsGrid = document.getElementById('movie-recommendations-grid');
+const movieRecommendationsEmpty = document.getElementById('movie-recommendations-empty');
+
+// Browse Series Page Elements
+const seriesBrowseSearchForm = document.getElementById('series-browse-search-form');
+const seriesBrowseSearchInput = document.getElementById('series-browse-search-input');
+const seriesGenreFilterBtn = document.getElementById('series-genre-filter-btn');
+const seriesGenreDropdown = document.getElementById('series-genre-dropdown');
+const seriesNetworksFilterBtn = document.getElementById('series-networks-filter-btn');
+const seriesNetworksDropdown = document.getElementById('series-networks-dropdown');
+const seriesStatusFilterBtn = document.getElementById('series-status-filter-btn');
+const seriesStatusDropdown = document.getElementById('series-status-dropdown');
+const seriesCountryFilterBtn = document.getElementById('series-country-filter-btn');
+const seriesCountryDropdown = document.getElementById('series-country-dropdown');
+const seriesCountryLabel = document.getElementById('series-country-label');
+const seriesLanguageFilterBtn = document.getElementById('series-language-filter-btn');
+const seriesLanguageDropdown = document.getElementById('series-language-dropdown');
+const seriesLanguageLabel = document.getElementById('series-language-label');
+const seriesActiveFilters = document.getElementById('series-active-filters');
+const seriesFilterBadges = document.getElementById('series-filter-badges');
+const seriesClearAllBtn = document.getElementById('series-clear-all-btn');
+const seriesBrowseResults = document.getElementById('series-browse-results');
+const seriesBrowseResultsTitle = document.getElementById('series-browse-results-title');
+const seriesBrowseGrid = document.getElementById('series-browse-grid');
+
+// Playlists Page Elements
+const playlistsGrid = document.getElementById('playlists-grid');
+const playlistsEmpty = document.getElementById('playlists-empty');
+const createPlaylistMainBtn = document.getElementById('create-playlist-main-btn');
+
+// Legacy Browse Page Elements
+const genreGrid = document.getElementById('genre-grid');
+const userPlaylistsSection = document.getElementById('user-playlists-section');
+const userPlaylistsGrid = document.getElementById('user-playlists-grid');
+const createPlaylistBtn = document.getElementById('create-playlist-btn');
+const genreMoviesSection = document.getElementById('genre-movies-section');
+const genreMoviesGrid = document.getElementById('genre-movies-grid');
+const genreMoviesTitle = document.getElementById('genre-movies-title');
+const createPlaylistModal = document.getElementById('create-playlist-modal');
+const createPlaylistForm = document.getElementById('create-playlist-form');
+const playlistNameInput = document.getElementById('playlist-name');
+const playlistDescriptionInput = document.getElementById('playlist-description');
+const playlistPublicCheckbox = document.getElementById('playlist-public');
+const closePlaylistModalBtn = document.getElementById('close-playlist-modal');
+const cancelPlaylistBtn = document.getElementById('cancel-playlist-btn');
+const guestWarning = document.getElementById('guest-warning');
+const loader = document.getElementById('loader');
+
+// --- App state ---
+let currentUser = null;
+let userMovieList = new Map(); // movieId => movieEntry
+let myListPageMovies = [];
+let currentPage = 'home';
+let currentModalMovie = null;
+let currentModalCredits = null;
+let firestoreUnsubscribe = null;
+let playlistsUnsubscribe = null;
+let userPlaylists = [];
+const APP_ID = (typeof __app_id !== 'undefined') ? __app_id : (settings.appId || 'blist-default-app');
+const seasonEpisodeCountCache = new Map();
+const seasonCastCache = new Map();
+let availableMoviesForRecommendation = []; // Cache of movies for recommendation algorithm
+
+function getSeriesSeasonTypeSlug(series) {
+  const seasons = Array.isArray(series.seasons) ? series.seasons : [];
+  if (series.defaultSeasonType && seasons.length) {
+    const match = seasons.find(s => s.type && Number(s.type.id) === Number(series.defaultSeasonType));
+    if (match && match.type && match.type.type) return String(match.type.type);
+  }
+  const firstType = seasons.find(s => s.type && s.type.type);
+  return firstType ? String(firstType.type.type) : 'default';
+}
+
+async function getSeasonEpisodeTotal(series, seasonNumber) {
+  const seriesId = String(series.id || '').replace('tvdb_', '');
+  const seasonType = getSeriesSeasonTypeSlug(series);
+  const cacheKey = `${seriesId}:${seasonType}:${seasonNumber}`;
+  if (seasonEpisodeCountCache.has(cacheKey)) {
+    return seasonEpisodeCountCache.get(cacheKey);
+  }
+  const total = await getSeriesSeasonEpisodeCount(seriesId, seasonType, seasonNumber);
+  if (typeof total === 'number') seasonEpisodeCountCache.set(cacheKey, total);
+  return total;
+}
+
+function tvdbHasEnglishOverview(item) {
+  const translations = item?.translations;
+  if (Array.isArray(translations)) {
+    return translations.some(t => (t.language || t.languageCode) === 'eng' && t.overview);
+  }
+  if (translations && typeof translations === 'object') {
+    return Boolean(translations.eng || translations.en);
+  }
+  const overviewTranslations = item?.overviewTranslations;
+  if (Array.isArray(overviewTranslations)) {
+    return overviewTranslations.some(t => (t.language || t.languageCode) === 'eng' && t.overview);
+  }
+  if (overviewTranslations && typeof overviewTranslations === 'object') {
+    return Boolean(overviewTranslations.eng || overviewTranslations.en);
+  }
+  return false;
+}
+
+function buildTvdbCredits(series) {
+  const credits = { cast: [], crew: [] };
+  const characters = Array.isArray(series?.characters) ? series.characters : [];
+  const cast = characters
+    .map((ch) => {
+      const name = ch.personName || ch.name || ch.person?.name || ch.characterName || ch.character?.name;
+      const id = ch.peopleId || ch.personId || ch.person?.id || ch.id;
+      return name ? { id, name } : null;
+    })
+    .filter(Boolean);
+  const uniqueCast = Array.from(new Map(cast.map(c => [c.name, c])).values());
+  credits.cast = uniqueCast;
+
+  const peopleBuckets = [series?.people, series?.seriesPeople, series?.peopleBase];
+  const people = peopleBuckets.flatMap(bucket => Array.isArray(bucket) ? bucket : []);
+  const possibleDirector = people.find(p => {
+    const role = (p.peopleType || p.role || p.job || p.type || '').toString().toLowerCase();
+    return role.includes('director');
+  });
+  if (possibleDirector) {
+    const name = possibleDirector.personName || possibleDirector.name || possibleDirector.person?.name;
+    if (name) credits.crew.push({ job: 'Director', name });
+  }
+  if (!credits.crew.length) {
+    const possibleCreator = people.find(p => {
+      const role = (p.peopleType || p.role || p.job || p.type || '').toString().toLowerCase();
+      return role.includes('creator') || role.includes('created');
+    });
+    const name = possibleCreator?.personName || possibleCreator?.name || possibleCreator?.person?.name;
+    if (name) credits.crew.push({ job: 'Creator', name });
+  }
+
+  return credits;
+}
+
+function getSeasonIdForNumber(series, seasonNumber) {
+  const seasons = Array.isArray(series?.seasons) ? series.seasons : [];
+  const preferred = series?.defaultSeasonType
+    ? seasons.filter(s => s.type && Number(s.type.id) === Number(series.defaultSeasonType))
+    : seasons;
+  const match = preferred.find(s => Number(s.number) === Number(seasonNumber));
+  if (match?.id) return match.id;
+  const fallback = seasons.find(s => Number(s.number) === Number(seasonNumber));
+  return fallback?.id || null;
+}
+
+function buildTvdbCastFromData(data) {
+  const characters = Array.isArray(data?.characters) ? data.characters : [];
+  const castFromCharacters = characters
+    .map((ch) => {
+      const name = ch.personName || ch.name || ch.person?.name || ch.characterName || ch.character?.name;
+      const id = ch.peopleId || ch.personId || ch.person?.id || ch.id;
+      return name ? { id, name } : null;
+    })
+    .filter(Boolean);
+
+  const peopleBuckets = [data?.people, data?.seriesPeople, data?.peopleBase];
+  const people = peopleBuckets.flatMap(bucket => Array.isArray(bucket) ? bucket : []);
+  const castFromPeople = people
+    .map((p) => {
+      const role = (p.peopleType || p.role || p.job || p.type || '').toString().toLowerCase();
+      const isCastRole = role.includes('actor') || role.includes('actress') || role.includes('cast') || role.includes('guest') || role.includes('host') || role.includes('character');
+      if (role && !isCastRole) return null;
+      const name = p.personName || p.name || p.person?.name;
+      const id = p.peopleId || p.personId || p.person?.id || p.id;
+      return name ? { id, name } : null;
+    })
+    .filter(Boolean);
+
+  const merged = [...castFromCharacters, ...castFromPeople];
+  return Array.from(new Map(merged.map(c => [c.name, c])).values());
+}
+
+// --- Settings init ---
+loadSettings();
+applyTheme(settings.theme);
+
+// --- Navigation ---
+function switchPage(page) {
+  const userProfilePage = document.getElementById('user-profile-page');
+  const notificationsPage = document.getElementById('notifications-page');
+  [homePage, myListPage, browseMoviesPage, browseSeriesPage, playlistsPage, recommendationsPage, profilePage, actorPage, settingsPage, loginRequiredPage, userProfilePage, notificationsPage].forEach(el => el && el.classList.add('hidden'));
+
+  if (navLinks.home) navLinks.home.classList.remove('active');
+  if (navLinks.myList) navLinks.myList.classList.remove('active');
+  if (navLinks.browse) navLinks.browse.classList.remove('active');
+
+  if ((page === 'my-list' || page === 'playlists' || page === 'profile' || page === 'user-profile' || page === 'notifications') && !currentUser) {
+    loginRequiredPage.classList.remove('hidden');
+    return;
+  }
+
+  currentPage = page;
+
+  if (page === 'home') homePage.classList.remove('hidden');
+  if (page === 'my-list') myListPage.classList.remove('hidden');
+  if (page === 'browse-movies') browseMoviesPage.classList.remove('hidden');
+  if (page === 'browse-series') browseSeriesPage.classList.remove('hidden');
+  if (page === 'playlists') {
+    playlistsPage.classList.remove('hidden');
+    loadPlaylistsPage();
+  }
+  if (page === 'recommendations') recommendationsPage.classList.remove('hidden');
+  if (page === 'profile') profilePage.classList.remove('hidden');
+  if (page === 'user-profile') {
+    userProfilePage.classList.remove('hidden');
+    updateProfileStats();
+  }
+  if (page === 'notifications') notificationsPage.classList.remove('hidden');
+  if (page === 'actor' && actorPage) actorPage.classList.remove('hidden');
+  if (page === 'settings') settingsPage.classList.remove('hidden');
+
+  if (navLinks.home) navLinks.home.classList.toggle('active', page === 'home');
+  if (navLinks.myList) navLinks.myList.classList.toggle('active', page === 'my-list');
+  if (navLinks.browse) navLinks.browse.classList.toggle('active', page === 'browse-movies' || page === 'browse-series');
+}
+
+// --- Auth and User State ---
+// Auth state listener should set currentUser (object or null). We expect setupAuthStateListener to call with null or a normalized user.
+setupAuthStateListener(user => {
+  currentUser = user;
+  renderAuthUI();
+  setupFirestoreListener();
+});
+
+// Render login/logout/profile UI
+function renderAuthUI() {
+  const authContainer = document.getElementById('auth-container');
+  if (!currentUser) {
+    authContainer.innerHTML = `
+      <div class="flex items-center space-x-2">
+        <button type="button" id="guest-login-btn" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200">Login as Guest</button>
+        <button type="button" id="login-btn" class="bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200">Login with Google</button>
+      </div>
+    `;
+    const loginBtnEl = document.getElementById('login-btn');
+    const guestBtnEl = document.getElementById('guest-login-btn');
+    if (loginBtnEl) loginBtnEl.onclick = handleLogin;
+    if (guestBtnEl) guestBtnEl.onclick = () => {
+      currentUser = {
+        uid: 'guest-user-' + Date.now(),
+        isAnonymous: false,
+        isGuest: true,
+        displayName: 'Guest User',
+        email: 'guest@blist.app',
+        photoURL: 'https://placehold.co/96x96/4b5563/ffffff?text=G'
+      };
+      userMovieList.clear();
+      renderAuthUI();
+      switchPage('home');
+      setupFirestoreListener(); // no-op for guests but keeps behavior consistent
+    };
+  } else {
+    // User is logged in - show profile icon
+    const profileMenuContainer = document.getElementById('profile-menu-container');
+    if (profileMenuContainer) {
+      profileMenuContainer.classList.remove('hidden');
+      
+      // Update profile initials
+      const initials = getUserInitials(currentUser);
+      const profileInitials = document.getElementById('profile-initials');
+      const profileInitialsLarge = document.getElementById('profile-initials-large');
+      if (profileInitials) profileInitials.textContent = initials;
+      if (profileInitialsLarge) profileInitialsLarge.textContent = initials;
+      
+      // Update profile page info
+      if (document.getElementById('profile-user-name')) {
+        document.getElementById('profile-user-name').textContent = currentUser.displayName || 'User';
+      }
+      if (document.getElementById('profile-user-email')) {
+        document.getElementById('profile-user-email').textContent = currentUser.email || 'user@blist.app';
+      }
+      
+      // Update stats
+      updateProfileStats();
+    }
+    
+    // Don't show logout button when profile icon is visible
+    document.getElementById('auth-container').innerHTML = '';
+  }
+
+  if (navLinks.myList) navLinks.myList.classList.toggle('hidden', !currentUser);
+}
+
+// Get user initials for profile icon
+function getUserInitials(user) {
+  if (!user) return 'U';
+  if (user.isGuest) return 'G';
+  const name = user.displayName || user.email || 'User';
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) || 'U';
+}
+
+// Update profile page stats
+function updateProfileStats() {
+  const watched = Array.from(userMovieList.values()).filter(m => m.status === 'watched').length;
+  const watching = Array.from(userMovieList.values()).filter(m => m.status === 'watching').length;
+  const planned = Array.from(userMovieList.values()).filter(m => m.status === 'planning').length;
+  
+  const watchedEl = document.getElementById('stat-movies-watched');
+  const watchingEl = document.getElementById('stat-movies-watching');
+  const plannedEl = document.getElementById('stat-movies-planned');
+  
+  if (watchedEl) watchedEl.textContent = watched;
+  if (watchingEl) watchingEl.textContent = watching;
+  if (plannedEl) plannedEl.textContent = planned;
+}
+
+// --- Firestore subscription ---
+// Use the storage helper subscribeToUserMovies to listen for changes for real users.
+// For guests we skip and keep local Map.
+function setupFirestoreListener() {
+  // unsubscribe any previous
+  if (typeof firestoreUnsubscribe === 'function') {
+    firestoreUnsubscribe();
+    firestoreUnsubscribe = null;
+  }
+
+  if (!currentUser || currentUser.isGuest) {
+    // guest: keep in-memory map (already in userMovieList)
+    if (currentPage === 'my-list') loadMyListPage();
+    return;
+  }
+
+  firestoreUnsubscribe = subscribeToUserMovies(APP_ID, currentUser.uid, (latestMap) => {
+    userMovieList = latestMap;
+    if (currentPage === 'my-list') loadMyListPage();
+  });
+}
+
+// --- Guest fallback and local updates ---
+async function ensureGuestSession() {
+  if (!currentUser || currentUser.isAnonymous) {
+    if (!(currentUser && currentUser.isGuest)) {
+      currentUser = {
+        uid: 'guest-user-' + Date.now(),
+        isAnonymous: false,
+        isGuest: true,
+      };
+    }
+  }
+}
+
+function getSeriesNetworkNames(series) {
+  const names = new Set();
+  const addName = (value) => {
+    if (!value) return;
+    if (typeof value === 'string') {
+      names.add(value.trim());
+      return;
+    }
+    if (value.name) names.add(String(value.name).trim());
+  };
+
+  addName(series.network);
+  addName(series.studio);
+  addName(series.company);
+
+  const networks = Array.isArray(series.networks) ? series.networks : [];
+  networks.forEach(addName);
+
+  const companies = Array.isArray(series.companies) ? series.companies : [];
+  companies.forEach(addName);
+
+  return Array.from(names).filter(Boolean);
+}
+
+function filterSeriesByNetworks(seriesList, networkFilters) {
+  if (!networkFilters || networkFilters.length === 0) return seriesList;
+  const normalizedFilters = networkFilters.map(n => n.toLowerCase());
+  return seriesList.filter(series => {
+    const names = getSeriesNetworkNames(series).map(n => n.toLowerCase());
+    return normalizedFilters.some(filter => names.some(name => name.includes(filter)));
+  });
+}
+
+function filterSeriesByStatus(seriesList, statusFilter) {
+  if (!statusFilter || Number.isFinite(Number(statusFilter.id))) return seriesList;
+  const target = String(statusFilter.name || statusFilter.id || '').toLowerCase();
+  if (!target) return seriesList;
+  return seriesList.filter(series => {
+    const status = series.status?.name || series.status || '';
+    return String(status).toLowerCase().includes(target);
+  });
+}
+
+async function populateMovieDropdowns() {
+  try {
+    // Fetch genres if not cached
+    if (genresList.length === 0) {
+      const genresData = await fetchTMDb('/genre/movie/list');
+      genresList = genresData.genres || [];
+    }
+    
+    // Populate genre dropdown
+    if (movieGenreDropdown) {
+      movieGenreDropdown.innerHTML = genresList.map(genre => {
+        const isActive = activeMovieFilters.some(f => f.type === 'genre' && f.id == genre.id);
+        return `
+        <div class="dropdown-option px-4 py-2 hover:bg-gray-700 cursor-pointer text-white ${isActive ? 'bg-blue-900' : ''}" data-type="genre" data-id="${genre.id}" data-name="${genre.name}">
+          ${isActive ? '✓ ' : ''}${genre.name}
+        </div>
+      `;
+      }).join('');
+    }
+    
+    // Populate keywords dropdown
+    const popularKeywords = [
+      { id: 9715, name: 'Superhero' },
+      { id: 1701, name: 'Time Travel' },
+      { id: 9672, name: 'Based on Novel' },
+      { id: 4565, name: 'Dystopia' },
+      { id: 9748, name: 'Revenge' },
+      { id: 10249, name: 'Heist' },
+      { id: 1299, name: 'Zombie' },
+      { id: 818, name: 'Based on Comic' },
+      { id: 6149, name: 'Vampire' },
+      { id: 1299, name: 'Post-Apocalyptic' },
+      { id: 9882, name: 'Space' },
+      { id: 4344, name: 'Musical' }
+    ];
+    
+    if (movieKeywordsDropdown) {
+      movieKeywordsDropdown.innerHTML = popularKeywords.map(keyword => {
+        const isActive = activeMovieFilters.some(f => f.type === 'keyword' && f.id == keyword.id);
+        return `
+        <div class="dropdown-option px-4 py-2 hover:bg-gray-700 cursor-pointer text-white ${isActive ? 'bg-blue-900' : ''}" data-type="keyword" data-id="${keyword.id}" data-name="${keyword.name}">
+          ${isActive ? '✓ ' : ''}${keyword.name}
+        </div>
+      `;
+      }).join('');
+    }
+    
+    // Populate rating dropdown
+    const certifications = [
+      { value: 'G', label: 'G' },
+      { value: 'PG', label: 'PG' },
+      { value: 'PG-13', label: 'PG-13' },
+      { value: 'R', label: 'R' },
+      { value: 'NC-17', label: 'NC-17' },
+      { value: 'NR', label: 'Not Rated' }
+    ];
+    
+    if (movieRatingDropdown) {
+      movieRatingDropdown.innerHTML = certifications.map(cert => {
+        const isActive = activeMovieFilters.some(f => f.type === 'certification' && f.id === cert.value);
+        return `
+        <div class="dropdown-option px-4 py-2 hover:bg-gray-700 cursor-pointer text-white ${isActive ? 'bg-blue-900' : ''}" data-type="certification" data-id="${cert.value}" data-name="${cert.label}">
+          ${isActive ? '✓ ' : ''}${cert.label}
+        </div>
+      `;
+      }).join('');
+    }
+    
+    // Add click handlers to all dropdown options
+    document.querySelectorAll('#movie-genre-dropdown .dropdown-option, #movie-keywords-dropdown .dropdown-option, #movie-rating-dropdown .dropdown-option').forEach(option => {
+      option.addEventListener('click', () => {
+        const type = option.dataset.type;
+        const id = option.dataset.id;
+        const name = option.dataset.name;
+        applyMovieFilter(type, id, name);
+      });
+    });
+  } catch (error) {
+    console.error('Error populating movie dropdowns:', error);
+  }
+}
+
+// Local wrapper that handles guest vs authenticated user
+async function localUpdateMovieStatus(movieId, movieData, status) {
+  if (!currentUser) {
+    await ensureGuestSession();
+  }
+  const movieEntry = { ...(userMovieList.get(String(movieId)) || {}), title: movieData.title, poster_path: movieData.poster_path, addedAt: new Date(), status };
+  if (currentUser.isGuest) {
+    userMovieList.set(String(movieId), movieEntry);
+    refreshMyListUI(movieId, movieData);
+    return;
+  }
+  // real user: write to Firestore via storage helper
+  try {
+    await updateMovieStatus(APP_ID, currentUser.uid, movieId, movieEntry);
+    // optimistic UI refresh; Firestore snapshot will also sync
+    refreshMyListUI(movieId, movieData);
+  } catch (e) {
+    console.error('updateMovieStatus failed:', e);
+    throw e;
+  }
+}
+
+async function localUpdateUserRating(movieId, movieData, newRating) {
+  if (!currentUser) {
+    await ensureGuestSession();
+  }
+  const currentMovie = userMovieList.get(String(movieId)) || {};
+  const oldRating = currentMovie.rating;
+  const movieEntry = { ...currentMovie, title: movieData.title, poster_path: movieData.poster_path, addedAt: new Date(), rating: newRating };
+  if (currentUser.isGuest) {
+    if (!movieEntry.status) movieEntry.status = 'watched';
+    userMovieList.set(String(movieId), movieEntry);
+    refreshMyListUI(movieId, movieData);
+    return;
+  }
+  try {
+    await updateUserRating(APP_ID, currentUser.uid, movieId, movieEntry, newRating, oldRating);
+    refreshMyListUI(movieId, movieData);
+  } catch (e) {
+    console.error('updateUserRating failed:', e);
+    throw e;
+  }
+}
+
+async function localUpdateWatchTime(movieId, movieData, minutes) {
+  if (!currentUser || currentUser.isAnonymous) return;
+  const currentMovie = userMovieList.get(String(movieId)) || {};
+  const movieEntry = { ...currentMovie, title: movieData.title, poster_path: movieData.poster_path, addedAt: new Date(), watchTime: minutes };
+  if (!movieEntry.status) movieEntry.status = 'watching';
+  if (currentUser.isGuest) {
+    userMovieList.set(String(movieId), movieEntry);
+    // no aggregate update needed
+    return;
+  }
+  try {
+    await updateWatchTime(APP_ID, currentUser.uid, movieId, movieEntry, minutes);
+  } catch (e) {
+    console.error('updateWatchTime failed:', e);
+    throw e;
+  }
+}
+
+async function localUpdateEpisodes(movieId, movieData, episodesData, currentSeason) {
+  if (!currentUser) {
+    await ensureGuestSession();
+  }
+  const currentMovie = userMovieList.get(String(movieId)) || {};
+  const movieEntry = { ...currentMovie, title: movieData.title, poster_path: movieData.poster_path, addedAt: new Date(), episodesWatched: episodesData, currentSeason: currentSeason, type: movieData.type || 'series' };
+  if (!movieEntry.status) movieEntry.status = 'watching';
+  if (currentUser.isGuest) {
+    userMovieList.set(String(movieId), movieEntry);
+    refreshMyListUI(movieId, movieData);
+    return;
+  }
+  try {
+    await updateEpisodesWatched(APP_ID, currentUser.uid, movieId, movieEntry, episodesData);
+    refreshMyListUI(movieId, movieData);
+  } catch (e) {
+    console.error('updateEpisodes failed:', e);
+    throw e;
+  }
+}
+
+async function localRemoveMovie(movieId) {
+  if (!currentUser) return;
+  const oldRating = userMovieList.get(String(movieId))?.rating;
+  if (currentUser.isGuest) {
+    userMovieList.delete(String(movieId));
+    try { myListPageMovies = myListPageMovies.filter(m => String(m.id) !== String(movieId)); } catch (e) {}
+    if (currentPage === 'my-list') {
+      const activeFilter = document.querySelector('#my-list-filters .filter-btn.active')?.dataset.status || 'all';
+      renderMyListFilters(activeFilter);
+      filterMyList(activeFilter);
+    }
+    return;
+  }
+  try {
+    await removeMovieFromList(APP_ID, currentUser.uid, movieId);
+    if (oldRating !== undefined) await updateAggregateRating(APP_ID, movieId, 0, oldRating);
+    try { myListPageMovies = myListPageMovies.filter(m => String(m.id) !== String(movieId)); } catch (e) {}
+    if (currentPage === 'my-list') {
+      const activeFilter = document.querySelector('#my-list-filters .filter-btn.active')?.dataset.status || 'all';
+      renderMyListFilters(activeFilter);
+      filterMyList(activeFilter);
+    }
+  } catch (e) {
+    console.error('localRemoveMovie failed', e);
+    throw e;
+  }
+}
+
+// --- Home Page Logic ---
+// --- Helper to normalize items with type field ---
+function normalizeMediaItem(item, type) {
+  if (type === 'movie') {
+    return {
+      ...item,
+      type: 'movie',
+      id: item.id,
+      media_type: 'movie',
+      dbId: `tmdb_${item.id}`
+    };
+  } else if (type === 'series') {
+    // TVDB returns: id, name, image, year, status, overview, etc.
+    console.log('Normalizing TVDB series:', item);
+    
+    // TVDB search might return IDs like "series-411597" or "movie-12345"
+    // We need to extract just the numeric part
+    let seriesId = item.id || item.tvdb_id || item.objectID;
+    
+    // Extract numeric ID from formats like "series-411597"
+    if (seriesId && typeof seriesId === 'string' && seriesId.includes('-')) {
+      const match = seriesId.match(/(\d+)$/);
+      if (match) {
+        seriesId = match[1];
+        console.log('Extracted numeric ID:', seriesId, 'from:', item.id);
+      }
+    }
+    
+    if (!seriesId) {
+      console.error('No valid ID found in TVDB series item:', item);
+    }
+    
+    // Handle title translation - check if title contains non-Latin characters
+    let titleEnglish = item.name || item.title || item.seriesName;
+    const hasNonLatinTitle = /[^\u0000-\u007F\u0080-\u00FF]/.test(titleEnglish);
+    
+    // Store a flag to indicate we might need to fetch English title later
+    item._needsTitleTranslation = hasNonLatinTitle;
+    item._originalTitle = titleEnglish;
+    
+    // Handle translations - TVDB may return translations array
+    let overview = item.overview || item.description || item.summary || 'No description available.';
+    let overviewOriginal = overview;
+    let overviewEnglish = overview;
+    
+    console.log('=== TVDB Translation Parsing ===');
+    console.log('Series overview (default):', overview);
+    console.log('Series title (default):', titleEnglish, '- has non-Latin chars:', hasNonLatinTitle);
+    console.log('Full item data:', JSON.stringify(item, null, 2));
+    
+    // Check if translations are available (from extended endpoint)
+    if (item.translations) {
+      console.log('Found translations field, type:', typeof item.translations, 'isArray:', Array.isArray(item.translations));
+      
+      // translations might be an object with language keys or an array
+      if (typeof item.translations === 'object') {
+        if (Array.isArray(item.translations)) {
+          // Array format: [{ language: 'eng', overview: '...', name: '...' }, ...]
+          console.log('Translations array length:', item.translations.length);
+          item.translations.forEach((t, i) => {
+            console.log(`Translation ${i}:`, t.language || t.languageCode, '- has overview:', !!t.overview, '- has name:', !!t.name);
+          });
+          
+          const engTranslation = item.translations.find(t => 
+            t.language === 'eng' || t.language === 'en' || t.language === 'english' || 
+            t.languageCode === 'eng' || t.languageCode === 'en'
+          );
+          if (engTranslation) {
+            console.log('Found English translation object:', engTranslation);
+            if (engTranslation.name) {
+              titleEnglish = engTranslation.name;
+              console.log('Using English name from translation:', titleEnglish);
+            }
+            if (engTranslation.overview) {
+              overviewEnglish = engTranslation.overview;
+              console.log('Using English overview from translation');
+            }
+          }
+          
+          // Try to find original language
+          const originalTranslation = item.translations.find(t => t.isOriginal || t.isPrimary);
+          if (originalTranslation && originalTranslation.overview) {
+            overviewOriginal = originalTranslation.overview;
+            console.log('Found original language translation');
+          }
+        } else {
+          // Object format: { eng: 'text', kor: 'text' }
+          console.log('Translations object keys:', Object.keys(item.translations));
+          if (item.translations.eng || item.translations.en) {
+            overviewEnglish = item.translations.eng || item.translations.en;
+            console.log('Found English translation from object key');
+          }
+        }
+      }
+    }
+    
+    // Also check nameTranslations and overviewTranslations fields
+    if (item.nameTranslations) {
+      console.log('Found nameTranslations, type:', typeof item.nameTranslations);
+      if (Array.isArray(item.nameTranslations)) {
+        const eng = item.nameTranslations.find(t => t.language === 'eng' || t.languageCode === 'eng');
+        if (eng && eng.name) {
+          titleEnglish = eng.name;
+          console.log('Using English name from nameTranslations array:', titleEnglish);
+        }
+      }
+    }
+    
+    if (item.overviewTranslations) {
+      console.log('Found overviewTranslations, type:', typeof item.overviewTranslations);
+      if (typeof item.overviewTranslations === 'object' && !Array.isArray(item.overviewTranslations)) {
+        console.log('overviewTranslations keys:', Object.keys(item.overviewTranslations));
+        if (item.overviewTranslations.eng || item.overviewTranslations.en) {
+          overviewEnglish = item.overviewTranslations.eng || item.overviewTranslations.en;
+          console.log('Using English from overviewTranslations object');
+        }
+      } else if (Array.isArray(item.overviewTranslations)) {
+        const eng = item.overviewTranslations.find(t => t.language === 'eng' || t.languageCode === 'eng');
+        if (eng && eng.overview) {
+          overviewEnglish = eng.overview;
+          console.log('Using English from overviewTranslations array');
+        }
+      }
+    }
+    
+    // Detect if text contains non-Latin characters (likely non-English)
+    const hasNonLatinChars = /[^\u0000-\u007F\u0080-\u00FF]/.test(overview);
+    console.log('Overview has non-Latin characters:', hasNonLatinChars);
+    console.log('Final overviewEnglish:', overviewEnglish);
+    console.log('Final overviewOriginal:', overviewOriginal);
+    console.log('Final titleEnglish:', titleEnglish);
+    console.log('Are overviews different?', overviewOriginal !== overviewEnglish);
+    
+    const seasonsArray = Array.isArray(item.seasons) ? item.seasons : [];
+    const seasonNumbers = Array.from(new Set(
+      seasonsArray
+        .map(s => Number(s.number))
+        .filter(n => Number.isInteger(n) && n > 0)
+    ));
+    const derivedSeasonCount = seasonNumbers.length ? Math.max(...seasonNumbers) : null;
+
+    const normalized = {
+      ...item,
+      type: 'series',
+      id: seriesId,
+      media_type: 'tv',
+      dbId: `tvdb_${seriesId}`,
+      // Map TVDB series fields to movie-like structure for rendering
+      title: titleEnglish,
+      poster_path: item.image || item.poster_path || item.image_url || item.thumbnail,
+      first_air_date: item.first_air_date || item.year || item.firstAired,
+      overview: overviewEnglish, // Default to English
+      overviewOriginal: overviewOriginal,
+      overviewEnglish: overviewEnglish,
+      hasMultipleLanguages: overviewOriginal !== overviewEnglish,
+      needsTranslation: hasNonLatinChars && overviewOriginal === overviewEnglish, // No translation available
+      release_date: item.first_air_date || item.year || item.firstAired, // For year display in modal
+      // Season information
+      numberOfSeasons: item.numberOfSeasons || derivedSeasonCount || (seasonsArray.length || null),
+      seasons: seasonsArray,
+      defaultSeasonType: item.defaultSeasonType || null
+    };
+    
+    console.log('Normalized series with season info:', { numberOfSeasons: normalized.numberOfSeasons, seasons: normalized.seasons, defaultSeasonType: normalized.defaultSeasonType });
+    console.log('Normalized with hasMultipleLanguages:', normalized.hasMultipleLanguages, 'needsTranslation:', normalized.needsTranslation);
+    console.log('=== End Translation Parsing ===');
+    return normalized;
+  }
+  return item;
+}
+
+async function enrichSeriesWithEnglishTitle(series) {
+  // If series has non-Latin characters in title, fetch extended details to get English name
+  if (series._needsTitleTranslation) {
+    console.log('Fetching English title for series:', series._originalTitle, 'ID:', series.id);
+    try {
+      // Use TVDB's translation API to get the English translation directly
+      const translation = await getSeriesTranslation(series.id, 'eng');
+      console.log('TVDB English translation result:', translation);
+      
+      if (translation && translation.name) {
+        console.log('Found English title from TVDB translation API:', translation.name);
+        series.title = translation.name;
+        return series;
+      } else if (translation) {
+        console.log('Translation object received but no name field. Full translation:', translation);
+      }
+    } catch (err) {
+      console.error('Failed to fetch English translation from TVDB API:', err);
+    }
+    
+    // Fallback: check extended series details for translations
+    try {
+      console.log('Falling back to extended series details...');
+      const details = await getSeriesDetails(series.id);
+      console.log('Series details:', details);
+      if (details) {
+        let englishTitle = null;
+        
+        // Check aliases field with English names
+        if (details.aliases && Array.isArray(details.aliases)) {
+          console.log('Found aliases:', details.aliases);
+          const engAlias = details.aliases.find(a => 
+            (a.language === 'eng' || a.language === 'en' || a.languageCode === 'eng' || a.languageCode === 'en') && a.name
+          );
+          if (engAlias) {
+            englishTitle = engAlias.name;
+            console.log('Found English alias:', englishTitle);
+          }
+        }
+        
+        // Check nameTranslations array
+        if (!englishTitle && details.nameTranslations && Array.isArray(details.nameTranslations)) {
+          console.log('Checking nameTranslations array:', details.nameTranslations);
+          const engTrans = details.nameTranslations.find(t => 
+            t.language === 'eng' || t.language === 'en' || t.languageCode === 'eng' || t.languageCode === 'en'
+          );
+          if (engTrans && engTrans.name) {
+            englishTitle = engTrans.name;
+            console.log('Found English name translation:', englishTitle);
+          }
+        }
+        
+        // Check translations array for name
+        if (!englishTitle && details.translations && Array.isArray(details.translations)) {
+          console.log('Checking translations array:', details.translations);
+          const engTrans = details.translations.find(t => 
+            t.language === 'eng' || t.language === 'en' || t.languageCode === 'eng' || t.languageCode === 'en'
+          );
+          if (engTrans && engTrans.name) {
+            englishTitle = engTrans.name;
+            console.log('Found English name in translations array:', englishTitle);
+          }
+        }
+        
+        if (englishTitle) {
+          console.log('Found English title from details:', englishTitle);
+          series.title = englishTitle;
+          return series;
+        } else {
+          console.log('No English title found in details, checking original response structure');
+          // Log the full details to understand the structure
+          console.log('Full details structure keys:', Object.keys(details));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch series details for English title:', err);
+    }
+  }
+  console.log('Returning series with title:', series.title);
+  return series;
+}
+
+async function loadHomePageContent() {
+  // Clear existing content
+  if (trendingCarousel) trendingCarousel.innerHTML = '';
+  if (upcomingMoviesCarousel) upcomingMoviesCarousel.innerHTML = '';
+  if (homeGrid) homeGrid.innerHTML = '';
+  if (topSeriesGrid) topSeriesGrid.innerHTML = '';
+  if (loader) loader.classList.remove('hidden');
+
+  try {
+    console.log('loadHomePageContent: Starting to fetch data...');
+    // Fetch all data in parallel
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Fetch upcoming movies using TMDb's upcoming endpoint (guarantees unreleased movies)
+    // Fetch multiple pages to get more results and sort by popularity
+    let upcomingMoviesData = await Promise.all([
+      fetchTMDb('/movie/upcoming', 'page=1&language=en-US'),
+      fetchTMDb('/movie/upcoming', 'page=2&language=en-US')
+    ]).then(results => {
+      const allMovies = [...(results[0]?.results || []), ...(results[1]?.results || [])];
+      // Filter to only movies releasing after today and sort by popularity
+      return allMovies
+        .filter(movie => {
+          const releaseDate = movie.release_date;
+          return releaseDate && new Date(releaseDate) > new Date(today);
+        })
+        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+    });
+    
+    const [trendingData, topMovies, topSeries] = await Promise.all([
+      fetchTMDb('/trending/movie/week'),
+      fetchTMDb('/movie/top_rated', 'page=1'),
+      getSeriesFilter('country=usa&lang=eng&sort=rating&sortType=desc&page=0')
+        .catch(() => []) // Fallback if TVDB fails
+    ]);
+
+    console.log('loadHomePageContent: Fetch complete. Data:', {
+      trending: trendingData?.results?.length || 0,
+      upcoming: upcomingMoviesData?.length || 0,
+      topMovies: topMovies?.results?.length || 0,
+      topSeries: Array.isArray(topSeries) ? topSeries.length : 0
+    });
+
+    // Process trending movies
+    const trendingMoviesList = (trendingData.results || [])
+      .slice(0, 20)
+      .map(movie => {
+        try {
+          const normalized = normalizeMediaItem(movie, 'movie');
+          console.log('Normalized trending movie:', { title: normalized.title, poster_path: normalized.poster_path });
+          return normalized;
+        } catch (e) {
+          console.error('Error normalizing trending movie:', e);
+          return null;
+        }
+      })
+      .filter(Boolean);
+    
+    console.log('Trending movies processed:', trendingMoviesList.length);
+
+    // Process upcoming movies
+    const upcomingMoviesList = (upcomingMoviesData || [])
+      .slice(0, 20)
+      .map(movie => {
+        try {
+          return normalizeMediaItem(movie, 'movie');
+        } catch (e) {
+          console.error('Error normalizing movie:', e);
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    // Process top movies
+    const topMoviesList = (topMovies.results || [])
+      .slice(0, 30)
+      .map(movie => {
+        try {
+          return normalizeMediaItem(movie, 'movie');
+        } catch (e) {
+          console.error('Error normalizing movie:', e);
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    // Process top series
+    const topSeriesList = (topSeries || [])
+      .slice(0, 30)
+      .map(series => {
+        try {
+          return normalizeMediaItem(series, 'series');
+        } catch (e) {
+          console.error('Error normalizing series:', e);
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    // Enrich series with English titles
+    const enrichedTopSeries = await Promise.all(
+      topSeriesList.map(s => enrichSeriesWithEnglishTitle(s))
+    ).catch(() => topSeriesList);
+
+    // Render carousels
+    renderCarousel(trendingCarousel, trendingMoviesList, 'trending');
+    renderCarousel(upcomingMoviesCarousel, upcomingMoviesList, 'upcoming-movies');
+    renderCarousel(homeGrid, topMoviesList, 'top-movies');
+    renderCarousel(topSeriesGrid, enrichedTopSeries, 'top-series');
+
+    // Setup carousel auto-scroll
+    setupCarouselAutoScroll('trending', trendingMoviesList.length);
+    setupCarouselAutoScroll('upcoming-movies', upcomingMoviesList.length);
+    setupCarouselAutoScroll('top-movies', topMoviesList.length);
+    setupCarouselAutoScroll('top-series', enrichedTopSeries.length);
+
+  } catch (err) {
+    console.error('Load home content error:', err);
+    showNotification("Failed to load content.", true);
+  } finally {
+    if (loader) loader.classList.add('hidden');
+  }
+}
+
+function renderCarousel(container, items, carouselId) {
+  if (!container) {
+    console.error(`Carousel container not found for ${carouselId}`);
+    return;
+  }
+  
+  if (!items || items.length === 0) {
+    console.warn(`No items to render for carousel ${carouselId}`);
+    container.innerHTML = '<div class="w-full text-center py-8 text-gray-400">No items available</div>';
+    return;
+  }
+  
+  console.log(`Rendering carousel ${carouselId} with ${items.length} items`);
+  
+  const carouselHTML = items.map((item, index) => {
+    if (!item) {
+      console.warn(`Item ${index} is null or undefined`);
+      return '';
+    }
+    
+    const title = item.title || item.name || 'Unknown';
+    let imageUrl = null;
+    
+    // Debug log
+    console.log(`Item ${index}:`, { title, poster_path: item.poster_path, image: item.image, dbId: item.dbId });
+    
+    // Handle image URL - check if it's already a full URL or needs prefix
+    const posterPath = item.poster_path || item.image || '';
+    
+    if (posterPath) {
+      // Check if it's already a complete URL (starts with http)
+      if (posterPath.startsWith('http://') || posterPath.startsWith('https://')) {
+        imageUrl = posterPath;
+      } else if (posterPath.startsWith('/')) {
+        // TMDb path format - use w342 which is better for portrait posters
+        imageUrl = 'https://image.tmdb.org/t/p/w342' + posterPath;
+      } else {
+        // TVDB might return just a filename or path
+        imageUrl = posterPath;
+      }
+    }
+    
+    // Fallback to placeholder if no image
+    if (!imageUrl) {
+      console.warn(`No image URL for ${title}`);
+      imageUrl = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="450"%3E%3Crect fill="%23374151" width="300" height="450"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy="0.3em" fill="%23999" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E';
+    }
+    
+    console.log(`  Item ${index} URL: ${imageUrl}`);
+    
+    return `
+      <div class="carousel-item flex-shrink-0 w-48 h-72 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity relative group" data-item-index="${index}" data-carousel-id="${carouselId}">
+        <img src="${imageUrl}" alt="${title}" class="w-full h-full object-cover" loading="lazy" onerror="console.error('Image failed to load:', this.src); this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22450%22%3E%3Crect fill=%22%23374151%22 width=%22300%22 height=%22450%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%220.3em%22 fill=%22%23999%22 font-size=%2214%22%3EFailed%3C/text%3E%3C/svg%3E'">
+        <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end">
+          <div class="p-3 w-full">
+            <h3 class="text-white font-semibold text-sm truncate">${title}</h3>
+            ${item.first_air_date || item.release_date ? `<p class="text-gray-300 text-xs">${new Date(item.first_air_date || item.release_date).getFullYear()}</p>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).filter(Boolean).join('');
+  
+  container.innerHTML = carouselHTML;
+  console.log(`Carousel ${carouselId} rendered with HTML length: ${carouselHTML.length}`);
+
+  // Add click handlers
+  container.querySelectorAll('.carousel-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const mediaId = items[item.dataset.itemIndex];
+      console.log(`Clicked carousel item ${item.dataset.itemIndex}:`, mediaId);
+      document.dispatchEvent(new CustomEvent('movieCardClick', {
+        detail: { movieId: mediaId.dbId || mediaId.id }
+      }));
+    });
+  });
+}
+
+function setupCarouselAutoScroll(carouselId, itemCount) {
+  let carousel, prevBtn, nextBtn;
+  
+  // Map carousel IDs to their elements
+  if (carouselId === 'upcoming-movies') {
+    carousel = upcomingMoviesCarousel;
+    prevBtn = upcomingMoviesPrev;
+    nextBtn = upcomingMoviesNext;
+  } else if (carouselId === 'top-movies') {
+    carousel = homeGrid;
+    prevBtn = document.getElementById('top-movies-prev');
+    nextBtn = document.getElementById('top-movies-next');
+  } else if (carouselId === 'top-series') {
+    carousel = topSeriesGrid;
+    prevBtn = document.getElementById('top-series-prev');
+    nextBtn = document.getElementById('top-series-next');
+  } else if (carouselId === 'trending') {
+    carousel = trendingCarousel;
+    prevBtn = trendingPrev;
+    nextBtn = trendingNext;
+  }
+  
+  if (!carousel) return;
+
+  let currentIndex = 0;
+  const itemWidth = 208 + 16; // w-48 (192px) + gap-4 (16px)
+  let autoScrollInterval;
+
+  const scrollToIndex = (index) => {
+    carousel.scrollLeft = index * itemWidth;
+  };
+
+  const startAutoScroll = () => {
+    autoScrollInterval = setInterval(() => {
+      currentIndex = (currentIndex + 1) % (itemCount || 1);
+      scrollToIndex(currentIndex);
+    }, 5000); // Scroll every 5 seconds
+  };
+
+  const stopAutoScroll = () => {
+    clearInterval(autoScrollInterval);
+  };
+
+  // Manual scroll controls
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      stopAutoScroll();
+      currentIndex = (currentIndex - 1 + (itemCount || 1)) % (itemCount || 1);
+      scrollToIndex(currentIndex);
+      startAutoScroll();
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      stopAutoScroll();
+      currentIndex = (currentIndex + 1) % (itemCount || 1);
+      scrollToIndex(currentIndex);
+      startAutoScroll();
+    });
+  }
+
+  // Stop on hover, resume on leave
+  carousel.addEventListener('mouseenter', stopAutoScroll);
+  carousel.addEventListener('mouseleave', startAutoScroll);
+
+  // Start auto-scroll
+  startAutoScroll();
+}
+
+// --- My List Page ---
+async function loadMyListPage() {
+  if (guestWarning) guestWarning.classList.toggle('hidden', !(currentUser && currentUser.isGuest));
+  const mediaIds = Array.from(userMovieList.keys());
+  if (mediaIds.length === 0) {
+    myListPageMovies = [];
+    renderMovieGrid(myListGrid, []);
+    renderMyListFilters();
+    return;
+  }
+  myListGrid.innerHTML = '';
+  if (loader) loader.classList.remove('hidden');
+  
+  // Fetch movies and series from appropriate APIs
+  const mediaPromises = mediaIds.map(async id => {
+    try {
+      if (String(id).startsWith('tvdb_')) {
+        const seriesId = String(id).replace('tvdb_', '');
+        const series = await getSeriesDetails(seriesId);
+        if (!series) return null;
+        return normalizeMediaItem(series, 'series');
+      } else {
+        const movieId = String(id).replace('tmdb_', '');
+        const movie = await fetchTMDb(`/movie/${movieId}`);
+        if (!movie) return null;
+        return normalizeMediaItem(movie, 'movie');
+      }
+    } catch (e) {
+      console.error(`Failed to fetch media ${id}:`, e);
+      return null;
+    }
+  });
+  
+  const mediaItems = await Promise.all(mediaPromises);
+  if (loader) loader.classList.add('hidden');
+  myListPageMovies = mediaItems.filter(Boolean);
+  renderMyListFilters();
+  renderMovieGrid(myListGrid, myListPageMovies, { showStatus: true });
+}
+
+function renderMyListFilters() {
+  myListFilters.innerHTML = `
+    <button type="button" class="filter-btn active" data-status="all">All</button>
+    <button type="button" class="filter-btn" data-status="watched">Watched</button>
+    <button type="button" class="filter-btn" data-status="watching">Watching</button>
+    <button type="button" class="filter-btn" data-status="planning">Planning</button>
+    <button type="button" class="filter-btn" data-status="dropped">Dropped</button>
+  `;
+  myListFilters.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.onclick = () => {
+      myListFilters.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterMyList(btn.dataset.status);
+    };
+  });
+}
+
+function filterMyList(status) {
+  if (status === 'all') {
+    renderMovieGrid(myListGrid, myListPageMovies, { showStatus: true });
+    return;
+  }
+  const filtered = myListPageMovies.filter(
+    movie => userMovieList.get(movie.dbId || String(movie.id))?.status === status
+  );
+  renderMovieGrid(myListGrid, filtered, { showStatus: true });
+}
+
+// --- Recommendations Page ---
+async function loadRecommendationsPage() {
+  // Load genre grid for all users
+  await loadGenreGrid();
+  
+  // Show/hide sections based on auth state
+  if (currentUser && !currentUser.isAnonymous && !currentUser.isGuest) {
+    // Logged in users see playlists and recommendations
+    if (userPlaylistsSection) userPlaylistsSection.classList.remove('hidden');
+    if (aiRecommendationsContainer) aiRecommendationsContainer.classList.remove('hidden');
+    await loadUserPlaylists();
+  } else {
+    // Non-logged in users don't see playlists or recommendations
+    if (userPlaylistsSection) userPlaylistsSection.classList.add('hidden');
+    if (aiRecommendationsContainer) aiRecommendationsContainer.classList.add('hidden');
+  }
+  
+  // Initialize recommendations grid (empty initially)
+  if (aiRecommendationsGrid) {
+    aiRecommendationsGrid.innerHTML = '';
+  }
+  if (recommendationsEmptyState) {
+    recommendationsEmptyState.classList.remove('hidden');
+  }
+}
+
+// --- Browse Page (Recommendations) Helpers ---
+
+// Cache for TMDb genres and keywords
+let genresList = [];
+let movieKeywordsList = [];
+let activeMovieFilters = []; // Array of {type, id, name}
+let activeSeriesFilters = []; // Array of {type, id, name}
+let tvdbGenresList = [];
+let tvdbSeriesStatuses = [];
+let selectedSeriesCountry = 'usa'; // Country code for series filter
+let selectedSeriesLanguage = 'eng'; // Language code for series filter
+
+// --- Browse Movies Page Functions ---
+async function loadBrowseMoviesPage() {
+  // Populate dropdown options
+  await populateMovieDropdowns();
+
+  await loadMovieBrowseResults();
+  if (currentUser && !currentUser.isAnonymous && !currentUser.isGuest) {
+    if (movieRecommendationsSection) movieRecommendationsSection.classList.remove('hidden');
+  } else {
+    if (movieRecommendationsSection) movieRecommendationsSection.classList.add('hidden');
+  }
+}
+
+async function loadSeriesBrowseResults() {
+  if (!seriesBrowseGrid) return;
+
+  try {
+    seriesBrowseGrid.innerHTML = '<div class="col-span-full text-center text-gray-400">Loading...</div>';
+
+    const searchFilter = activeSeriesFilters.find(f => f.type === 'search');
+    const genreFilter = activeSeriesFilters.find(f => f.type === 'genre' && Number.isFinite(Number(f.id)));
+    const statusFilter = activeSeriesFilters.find(f => f.type === 'status');
+    const networkFilters = activeSeriesFilters.filter(f => f.type === 'network').map(f => f.name);
+
+    let results = [];
+    if (searchFilter) {
+      results = await searchTVSeries(searchFilter.query);
+      if (seriesBrowseResultsTitle) seriesBrowseResultsTitle.textContent = searchFilter.name;
+    } else {
+      let params = `country=${selectedSeriesCountry}&lang=${selectedSeriesLanguage}&sort=score&sortType=desc&page=0`;
+      if (genreFilter) params += `&genre=${encodeURIComponent(genreFilter.id)}`;
+      if (statusFilter && Number.isFinite(Number(statusFilter.id))) {
+        params += `&status=${encodeURIComponent(statusFilter.id)}`;
+      }
+      results = await getSeriesFilter(params);
+
+      if (seriesBrowseResultsTitle) {
+        seriesBrowseResultsTitle.textContent = activeSeriesFilters.length
+          ? activeSeriesFilters.map(f => f.name).join(', ')
+          : 'Popular Series';
+      }
+    }
+
+    // Filter by networks if needed
+    if (networkFilters.length > 0) {
+      results = filterSeriesByNetworks(results, networkFilters);
+    }
+
+    // Normalize and render
+    const normalized = results.map(s => normalizeMediaItem(s, 'series'));
+    const enriched = await Promise.all(
+      normalized.map(s => enrichSeriesWithEnglishTitle(s))
+    );
+
+    if (enriched.length === 0) {
+      seriesBrowseGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center">No results found</p>';
+    } else {
+      renderMovieGrid(seriesBrowseGrid, enriched);
+    }
+  } catch (error) {
+    console.error('Error loading series results:', error);
+    seriesBrowseGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center">Error loading series</p>';
+  }
+}
+
+async function applyMovieFilter(type, id, name) {
+  // Check if filter already exists
+  const existingIndex = activeMovieFilters.findIndex(f => f.type === type && f.id == id);
+  
+  if (existingIndex >= 0) {
+    // Remove filter if it already exists (toggle off)
+    activeMovieFilters.splice(existingIndex, 1);
+  } else {
+    // Add new filter
+    activeMovieFilters.push({ type, id, name });
+  }
+  
+  // Update dropdowns to show checkmarks
+  await populateMovieDropdowns();
+  
+  // Update UI and load results
+  renderMovieFilterBadges();
+  await loadMovieBrowseResults();
+}
+
+function renderMovieFilterBadges() {
+  if (!movieFilterBadges || !movieActiveFilters) return;
+  
+  if (activeMovieFilters.length === 0) {
+    movieActiveFilters.classList.add('hidden');
+    return;
+  }
+  
+  movieActiveFilters.classList.remove('hidden');
+  
+  movieFilterBadges.innerHTML = activeMovieFilters.map((filter, index) => `
+    <div class="px-3 py-1 bg-blue-600 rounded-md text-white text-sm font-medium flex items-center gap-2 group/badge cursor-pointer hover:bg-blue-700">
+      <span>${filter.name}</span>
+      <span class="text-white font-bold hidden group-hover/badge:inline text-lg leading-none" data-filter-index="${index}">✕</span>
+    </div>
+  `).join('');
+  
+  // Add click handlers for removing individual filters
+  movieFilterBadges.querySelectorAll('[data-filter-index]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const index = parseInt(btn.dataset.filterIndex);
+      activeMovieFilters.splice(index, 1);
+      await populateMovieDropdowns();
+      renderMovieFilterBadges();
+      await loadMovieBrowseResults();
+    });
+  });
+}
+
+async function loadMovieBrowseResults() {
+  if (!movieBrowseGrid) return;
+  
+  try {
+    movieBrowseGrid.innerHTML = '<div class="col-span-full text-center text-gray-400">Loading...</div>';
+    
+    let data;
+    const searchFilter = activeMovieFilters.find(f => f.type === 'search');
+    if (searchFilter) {
+      data = await fetchTMDb('/search/movie', `query=${encodeURIComponent(searchFilter.query)}`);
+      if (movieBrowseResultsTitle) movieBrowseResultsTitle.textContent = searchFilter.name;
+    } else if (activeMovieFilters.length === 0) {
+      // Load trending movies as default
+      data = await fetchTMDb('/trending/movie/week');
+      if (movieBrowseResultsTitle) movieBrowseResultsTitle.textContent = 'Trending This Week';
+    } else {
+      // Build params from active filters
+      let params = 'sort_by=popularity.desc';
+      
+      // Collect filters by type
+      const genres = activeMovieFilters.filter(f => f.type === 'genre').map(f => f.id);
+      const keywords = activeMovieFilters.filter(f => f.type === 'keyword').map(f => f.id);
+      const certifications = activeMovieFilters.filter(f => f.type === 'certification').map(f => f.id);
+      
+      if (genres.length > 0) {
+        params += `&with_genres=${genres.join(',')}`;
+      }
+      if (keywords.length > 0) {
+        params += `&with_keywords=${keywords.join(',')}`;
+      }
+      if (certifications.length > 0) {
+        // TMDb only supports single certification in discover
+        params += `&certification=${certifications[0]}&certification_country=US`;
+      }
+      
+      data = await fetchTMDb('/discover/movie', params);
+      
+      // Update title
+      if (movieBrowseResultsTitle) {
+        const filterNames = activeMovieFilters.map(f => f.name).join(', ');
+        movieBrowseResultsTitle.textContent = filterNames;
+      }
+    }
+    
+    const movies = (data.results || []).map(movie => normalizeMediaItem(movie, 'movie'));
+    
+    if (movies.length === 0) {
+      movieBrowseGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center">No movies found matching your filters</p>';
+    } else {
+      renderMovieGrid(movieBrowseGrid, movies);
+    }
+  } catch (error) {
+    console.error('Error loading movie browse results:', error);
+    if (movieBrowseGrid) movieBrowseGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center">Error loading movies</p>';
+  }
+}
+
+function closeAllMovieDropdowns() {
+  if (movieGenreDropdown) movieGenreDropdown.classList.add('hidden');
+  if (movieKeywordsDropdown) movieKeywordsDropdown.classList.add('hidden');
+  if (movieRatingDropdown) movieRatingDropdown.classList.add('hidden');
+}
+
+// --- Browse Series Page Functions ---
+async function loadBrowseSeriesPage() {
+  // Populate dropdown options
+  await populateSeriesDropdowns();
+
+  await loadSeriesBrowseResults();
+}
+
+async function populateSeriesDropdowns() {
+  try {
+    if (tvdbGenresList.length === 0) {
+      tvdbGenresList = await getTVDBGenres();
+    }
+
+    const fallbackGenres = [
+      { id: 'Action', name: 'Action' },
+      { id: 'Adventure', name: 'Adventure' },
+      { id: 'Animation', name: 'Animation' },
+      { id: 'Comedy', name: 'Comedy' },
+      { id: 'Crime', name: 'Crime' },
+      { id: 'Documentary', name: 'Documentary' },
+      { id: 'Drama', name: 'Drama' },
+      { id: 'Family', name: 'Family' },
+      { id: 'Fantasy', name: 'Fantasy' },
+      { id: 'Horror', name: 'Horror' },
+      { id: 'Mystery', name: 'Mystery' },
+      { id: 'Romance', name: 'Romance' },
+      { id: 'Sci-Fi', name: 'Sci-Fi' },
+      { id: 'Thriller', name: 'Thriller' },
+      { id: 'War', name: 'War' },
+      { id: 'Western', name: 'Western' }
+    ];
+
+    const genres = tvdbGenresList.length ? tvdbGenresList : fallbackGenres;
+
+    if (seriesGenreDropdown) {
+      seriesGenreDropdown.innerHTML = genres.map(genre => {
+        const isActive = activeSeriesFilters.some(f => f.type === 'genre' && String(f.id) === String(genre.id));
+        return `
+        <div class="dropdown-option px-4 py-2 ${isActive ? 'bg-blue-900 text-white' : 'hover:bg-gray-700'} cursor-pointer text-white" data-type="genre" data-id="${genre.id}" data-name="${genre.name}">
+          ${genre.name}${isActive ? ' ✓' : ''}
+        </div>
+      `;
+      }).join('');
+    }
+    
+    // Populate networks dropdown
+    const popularNetworks = [
+      { name: 'Netflix' },
+      { name: 'HBO' },
+      { name: 'Disney+' },
+      { name: 'Amazon' },
+      { name: 'Apple TV+' },
+      { name: 'Hulu' },
+      { name: 'NBC' },
+      { name: 'ABC' },
+      { name: 'CBS' },
+      { name: 'FOX' },
+      { name: 'BBC' },
+      { name: 'AMC' }
+    ];
+    
+    if (seriesNetworksDropdown) {
+      seriesNetworksDropdown.innerHTML = popularNetworks.map(network => {
+        const isActive = activeSeriesFilters.some(f => f.type === 'network' && f.id === network.name);
+        return `
+        <div class="dropdown-option px-4 py-2 ${isActive ? 'bg-blue-900 text-white' : 'hover:bg-gray-700'} cursor-pointer text-white" data-type="network" data-id="${network.name}" data-name="${network.name}">
+          ${network.name}${isActive ? ' ✓' : ''}
+        </div>
+      `;
+      }).join('');
+    }
+    
+    if (tvdbSeriesStatuses.length === 0) {
+      tvdbSeriesStatuses = await getSeriesStatuses();
+    }
+
+    const fallbackStatuses = [
+      { id: 'Continuing', name: 'Continuing' },
+      { id: 'Ended', name: 'Ended' },
+      { id: 'Upcoming', name: 'Upcoming' }
+    ];
+
+    const statuses = tvdbSeriesStatuses.length ? tvdbSeriesStatuses : fallbackStatuses;
+
+    if (seriesStatusDropdown) {
+      seriesStatusDropdown.innerHTML = statuses.map(status => {
+        const statusId = status.id ?? status.value ?? status.name;
+        const statusName = status.name || status.value || status.id;
+        const isActive = activeSeriesFilters.some(f => f.type === 'status' && String(f.id) === String(statusId));
+        return `
+        <div class="dropdown-option px-4 py-2 ${isActive ? 'bg-blue-900 text-white' : 'hover:bg-gray-700'} cursor-pointer text-white" data-type="status" data-id="${statusId}" data-name="${statusName}">
+          ${statusName}${isActive ? ' ✓' : ''}
+        </div>
+      `;
+      }).join('');
+    }
+    
+    // Populate country dropdown
+    const countries = [
+      { code: 'usa', name: 'USA' },
+      { code: 'gbr', name: 'United Kingdom' },
+      { code: 'can', name: 'Canada' },
+      { code: 'aus', name: 'Australia' },
+      { code: 'jpn', name: 'Japan' },
+      { code: 'kor', name: 'South Korea' },
+      { code: 'fra', name: 'France' },
+      { code: 'deu', name: 'Germany' },
+      { code: 'esp', name: 'Spain' },
+      { code: 'ita', name: 'Italy' },
+      { code: 'mex', name: 'Mexico' },
+      { code: 'bra', name: 'Brazil' },
+      { code: 'ind', name: 'India' }
+    ];
+    
+    if (seriesCountryDropdown) {
+      seriesCountryDropdown.innerHTML = countries.map(country => {
+        const isActive = selectedSeriesCountry === country.code;
+        return `
+        <div class="dropdown-option px-4 py-2 ${isActive ? 'bg-blue-900 text-white' : 'hover:bg-gray-700'} cursor-pointer text-white" data-country="${country.code}">
+          ${country.name}${isActive ? ' ✓' : ''}
+        </div>
+      `;
+      }).join('');
+    }
+    
+    // Populate language dropdown
+    const languages = [
+      { code: 'eng', name: 'English' },
+      { code: 'spa', name: 'Spanish' },
+      { code: 'fra', name: 'French' },
+      { code: 'deu', name: 'German' },
+      { code: 'ita', name: 'Italian' },
+      { code: 'jpn', name: 'Japanese' },
+      { code: 'kor', name: 'Korean' },
+      { code: 'por', name: 'Portuguese' },
+      { code: 'rus', name: 'Russian' },
+      { code: 'zho', name: 'Chinese' },
+      { code: 'hin', name: 'Hindi' },
+      { code: 'ara', name: 'Arabic' }
+    ];
+    
+    if (seriesLanguageDropdown) {
+      seriesLanguageDropdown.innerHTML = languages.map(language => {
+        const isActive = selectedSeriesLanguage === language.code;
+        return `
+        <div class="dropdown-option px-4 py-2 ${isActive ? 'bg-blue-900 text-white' : 'hover:bg-gray-700'} cursor-pointer text-white" data-language="${language.code}">
+          ${language.name}${isActive ? ' ✓' : ''}
+        </div>
+      `;
+      }).join('');
+    }
+    
+    // Add click handlers to all dropdown options
+    document.querySelectorAll('#series-genre-dropdown .dropdown-option, #series-networks-dropdown .dropdown-option, #series-status-dropdown .dropdown-option').forEach(option => {
+      option.addEventListener('click', () => {
+        const type = option.dataset.type;
+        const id = option.dataset.id;
+        const name = option.dataset.name;
+        applySeriesFilter(type, id, name);
+      });
+    });
+    
+    // Add click handlers for country dropdown
+    document.querySelectorAll('#series-country-dropdown .dropdown-option').forEach(option => {
+      option.addEventListener('click', async () => {
+        const countryCode = option.dataset.country;
+        if (countryCode && countryCode !== selectedSeriesCountry) {
+          selectedSeriesCountry = countryCode;
+          const countryName = option.textContent.replace(' ✓', '').trim();
+          if (seriesCountryLabel) seriesCountryLabel.textContent = `Country: ${countryName}`;
+          await populateSeriesDropdowns();
+          await loadSeriesBrowseResults();
+        }
+        if (seriesCountryDropdown) seriesCountryDropdown.classList.add('hidden');
+      });
+    });
+    
+    // Add click handlers for language dropdown
+    document.querySelectorAll('#series-language-dropdown .dropdown-option').forEach(option => {
+      option.addEventListener('click', async () => {
+        const languageCode = option.dataset.language;
+        if (languageCode && languageCode !== selectedSeriesLanguage) {
+          selectedSeriesLanguage = languageCode;
+          const languageName = option.textContent.replace(' ✓', '').trim();
+          if (seriesLanguageLabel) seriesLanguageLabel.textContent = `Language: ${languageName.toUpperCase()}`;
+          await populateSeriesDropdowns();
+          await loadSeriesBrowseResults();
+        }
+        if (seriesLanguageDropdown) seriesLanguageDropdown.classList.add('hidden');
+      });
+    });
+  } catch (error) {
+    console.error('Error populating series dropdowns:', error);
+  }
+}
+
+async function applySeriesFilter(type, id, name) {
+  // Check if filter already exists
+  const existingIndex = activeSeriesFilters.findIndex(f => f.type === type && f.id == id);
+  
+  if (existingIndex >= 0) {
+    // Remove filter if it already exists (toggle off)
+    activeSeriesFilters.splice(existingIndex, 1);
+  } else {
+    // Add new filter
+    activeSeriesFilters.push({ type, id, name });
+  }
+  
+  // Update dropdowns to show checkmarks
+  await populateSeriesDropdowns();
+  
+  // Update UI and load results
+  renderSeriesFilterBadges();
+
+  await loadSeriesBrowseResults();
+}
+
+function renderSeriesFilterBadges() {
+  if (!seriesFilterBadges || !seriesActiveFilters) return;
+  
+  if (activeSeriesFilters.length === 0) {
+    seriesActiveFilters.classList.add('hidden');
+    return;
+  }
+  
+  seriesActiveFilters.classList.remove('hidden');
+  
+  seriesFilterBadges.innerHTML = activeSeriesFilters.map((filter, index) => `
+    <div class="px-3 py-1 bg-blue-600 rounded-md text-white text-sm font-medium flex items-center gap-2 group/badge cursor-pointer hover:bg-blue-700">
+      <span>${filter.name}</span>
+      <span class="text-white font-bold hidden group-hover/badge:inline text-lg leading-none" data-filter-index="${index}">✕</span>
+    </div>
+  `).join('');
+  
+  // Add click handlers for removing individual filters
+  seriesFilterBadges.querySelectorAll('[data-filter-index]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const index = parseInt(btn.dataset.filterIndex);
+      activeSeriesFilters.splice(index, 1);
+      await populateSeriesDropdowns();
+      renderSeriesFilterBadges();
+      await loadSeriesBrowseResults();
+    });
+  });
+}
+
+function closeAllSeriesDropdowns() {
+  if (seriesGenreDropdown) seriesGenreDropdown.classList.add('hidden');
+  if (seriesNetworksDropdown) seriesNetworksDropdown.classList.add('hidden');
+  if (seriesStatusDropdown) seriesStatusDropdown.classList.add('hidden');
+  if (seriesCountryDropdown) seriesCountryDropdown.classList.add('hidden');
+  if (seriesLanguageDropdown) seriesLanguageDropdown.classList.add('hidden');
+}
+
+// --- Legacy Browse Page (keeping for compatibility) ---
+async function loadGenreGrid() {
+  if (!genreGrid) return;
+  
+  try {
+    // Fetch genres from TMDb if not cached
+    if (genresList.length === 0) {
+      const genresData = await fetchTMDb('/genre/movie/list');
+      genresList = genresData.genres || [];
+    }
+    
+    // Render genre cards
+    genreGrid.innerHTML = genresList.map(genre => `
+      <div class="genre-card bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-lg hover:from-red-900 hover:to-gray-900 transition-all cursor-pointer border border-gray-700 hover:border-red-500" data-genre-id="${genre.id}">
+        <h3 class="text-xl font-bold">${genre.name}</h3>
+      </div>
+    `).join('');
+    
+    // Add click handlers
+    genreGrid.querySelectorAll('.genre-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const genreId = card.dataset.genreId;
+        const genreName = genresList.find(g => g.id == genreId)?.name || 'Movies';
+        loadGenreMovies(genreId, genreName);
+      });
+    });
+  } catch (error) {
+    console.error('Error loading genres:', error);
+    genreGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center">Could not load genres</p>';
+  }
+}
+
+async function loadGenreMovies(genreId, genreName) {
+  if (!genreMoviesSection || !genreMoviesGrid || !genreMoviesTitle) return;
+  
+  try {
+    // Show section and update title
+    genreMoviesSection.classList.remove('hidden');
+    genreMoviesTitle.textContent = genreName;
+    genreMoviesGrid.innerHTML = '<div class="col-span-full text-center text-gray-400">Loading...</div>';
+    
+    // Scroll to section
+    genreMoviesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Fetch genre movies from TMDb
+    const data = await fetchTMDb('/discover/movie', `with_genres=${genreId}&sort_by=popularity.desc`);
+    const movies = (data.results || []).map(movie => normalizeMediaItem(movie, 'movie'));
+    
+    if (movies.length === 0) {
+      genreMoviesGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center">No movies found</p>';
+    } else {
+      renderMovieGrid(genreMoviesGrid, movies);
+    }
+  } catch (error) {
+    console.error('Error loading genre movies:', error);
+    genreMoviesGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center">Error loading movies</p>';
+  }
+}
+
+async function loadUserPlaylists() {
+  if (!userPlaylistsGrid) return;
+  
+  // Unsubscribe from previous playlist subscription if exists
+  if (playlistsUnsubscribe) {
+    playlistsUnsubscribe();
+    playlistsUnsubscribe = null;
+  }
+  
+  if (!currentUser || currentUser.isAnonymous || currentUser.isGuest) {
+    userPlaylistsGrid.innerHTML = '';
+    return;
+  }
+  
+  // Subscribe to user playlists
+  playlistsUnsubscribe = subscribeToUserPlaylists(APP_ID, currentUser.uid, (playlists) => {
+    userPlaylists = playlists;
+    renderPlaylists(playlists);
+  });
+}
+
+function renderPlaylists(playlists) {
+  if (!userPlaylistsGrid) return;
+  
+  if (playlists.length === 0) {
+    userPlaylistsGrid.innerHTML = '';
+    return;
+  }
+  
+  userPlaylistsGrid.innerHTML = playlists.map(playlist => `
+    <div class="playlist-card bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-red-500 transition-all cursor-pointer" data-playlist-id="${playlist.id}">
+      <div class="flex items-start justify-between mb-2">
+        <h3 class="text-lg font-bold truncate flex-1">${escapeHtml(playlist.name)}</h3>
+        <button class="delete-playlist-btn text-gray-400 hover:text-red-500 ml-2" data-playlist-id="${playlist.id}">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+          </svg>
+        </button>
+      </div>
+      ${playlist.description ? `<p class="text-sm text-gray-400 mb-2 line-clamp-2">${escapeHtml(playlist.description)}</p>` : ''}
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-gray-500">${playlist.movieIds?.length || 0} movies</span>
+        ${playlist.isPublic ? '<span class="text-green-400 text-xs">Public</span>' : '<span class="text-gray-500 text-xs">Private</span>'}
+      </div>
+    </div>
+  `).join('');
+  
+  // Add event listeners
+  userPlaylistsGrid.querySelectorAll('.playlist-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (!e.target.closest('.delete-playlist-btn')) {
+        const playlistId = card.dataset.playlistId;
+        openPlaylistView(playlistId);
+      }
+    });
+  });
+  
+  userPlaylistsGrid.querySelectorAll('.delete-playlist-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const playlistId = btn.dataset.playlistId;
+      const playlist = userPlaylists.find(p => p.id === playlistId);
+      
+      if (confirm(`Delete playlist "${playlist?.name}"?`)) {
+        try {
+          await deletePlaylist(APP_ID, currentUser.uid, playlistId);
+          showNotification('Playlist deleted', true);
+        } catch (error) {
+          console.error('Error deleting playlist:', error);
+          showNotification('Failed to delete playlist', false);
+        }
+      }
+    });
+  });
+}
+
+function openPlaylistView(playlistId) {
+  // TODO: Implement playlist detail view showing all movies in the playlist
+  console.log('Opening playlist:', playlistId);
+  showNotification('Playlist view coming soon!', true);
+}
+
+async function loadPlaylistsPage() {
+  if (!currentUser || currentUser.isAnonymous || currentUser.isGuest) {
+    return;
+  }
+  
+  if (!playlistsGrid) return;
+  
+  // Unsubscribe from previous playlist subscription if exists
+  if (playlistsUnsubscribe) {
+    playlistsUnsubscribe();
+    playlistsUnsubscribe = null;
+  }
+  
+  // Subscribe to user playlists
+  playlistsUnsubscribe = subscribeToUserPlaylists(APP_ID, currentUser.uid, (playlists) => {
+    userPlaylists = playlists;
+    renderPlaylistsPage(playlists);
+  });
+}
+
+function renderPlaylistsPage(playlists) {
+  if (!playlistsGrid || !playlistsEmpty) return;
+  
+  if (playlists.length === 0) {
+    playlistsGrid.innerHTML = '';
+    playlistsEmpty.classList.remove('hidden');
+    return;
+  }
+  
+  playlistsEmpty.classList.add('hidden');
+  
+  playlistsGrid.innerHTML = playlists.map(playlist => `
+    <div class="playlist-card bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-purple-500 transition-all cursor-pointer" data-playlist-id="${playlist.id}">
+      <div class="flex items-start justify-between mb-2">
+        <h3 class="text-lg font-bold truncate flex-1">${escapeHtml(playlist.name)}</h3>
+        <button class="delete-playlist-btn text-gray-400 hover:text-red-500 ml-2" data-playlist-id="${playlist.id}">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+          </svg>
+        </button>
+      </div>
+      ${playlist.description ? `<p class="text-sm text-gray-400 mb-2 line-clamp-2">${escapeHtml(playlist.description)}</p>` : ''}
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-gray-500">${playlist.movieIds?.length || 0} movies</span>
+        ${playlist.isPublic ? '<span class="text-green-400 text-xs">Public</span>' : '<span class="text-gray-500 text-xs">Private</span>'}
+      </div>
+    </div>
+  `).join('');
+  
+  // Add event listeners
+  playlistsGrid.querySelectorAll('.playlist-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (!e.target.closest('.delete-playlist-btn')) {
+        const playlistId = card.dataset.playlistId;
+        openPlaylistView(playlistId);
+      }
+    });
+  });
+  
+  playlistsGrid.querySelectorAll('.delete-playlist-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const playlistId = btn.dataset.playlistId;
+      const playlist = userPlaylists.find(p => p.id === playlistId);
+      
+      if (confirm(`Delete playlist "${playlist?.name}"?`)) {
+        try {
+          await deletePlaylist(APP_ID, currentUser.uid, playlistId);
+          showNotification('Playlist deleted', true);
+        } catch (error) {
+          console.error('Error deleting playlist:', error);
+          showNotification('Failed to delete playlist', false);
+        }
+      }
+    });
+  });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// --- Recommendation Algorithm ---
+function getGenreScores(watchedMovies) {
+  // Extract all genres from watched movies and score them
+  const genreMap = new Map();
+  watchedMovies.forEach(movie => {
+    const genres = Array.isArray(movie.genres) ? movie.genres : [];
+    genres.forEach(genre => {
+      const key = genre.id || genre;
+      genreMap.set(key, (genreMap.get(key) || 0) + 1);
+    });
+  });
+  return genreMap;
+}
+
+function scoreMovie(movie, genreScores, watchedIds) {
+  // Don't recommend movies already in the list
+  if (watchedIds.has(movie.dbId || movie.id)) return 0;
+  
+  // Calculate genre match score
+  const movieGenres = Array.isArray(movie.genres) ? movie.genres : [];
+  let genreScore = 0;
+  movieGenres.forEach(genre => {
+    const key = genre.id || genre;
+    genreScore += genreScores.get(key) || 0;
+  });
+  
+  // Normalize genre score (0-100)
+  const maxGenreScore = Math.max(...genreScores.values()) * movieGenres.length;
+  const normalizedGenreScore = maxGenreScore > 0 ? (genreScore / maxGenreScore) * 100 : 0;
+  
+  // Rating score (higher is better)
+  const rating = (movie.vote_average || 0) / 10;
+  const ratingScore = rating * 100;
+  
+  // Popularity score (higher is better)
+  const popularity = Math.min((movie.popularity || 0) / 50 * 100, 100);
+  
+  // Combine scores (40% genre, 35% rating, 25% popularity)
+  const finalScore = (normalizedGenreScore * 0.4) + (ratingScore * 0.35) + (popularity * 0.25);
+  
+  return finalScore;
+}
+
+async function generateAlgorithmRecommendations() {
+  const watchedMovies = myListPageMovies.filter(movie => 
+    userMovieList.get(movie.dbId || String(movie.id))?.status === 'watched'
+  );
+  
+  if (watchedMovies.length < 3) {
+    showNotification('Add at least 3 movies to your "Watched" list for better recommendations.', false);
+    return;
+  }
+  
+  aiRecommendationsBtn.disabled = true;
+  aiRecommendationsBtn.textContent = '🔄 Generating...';
+  
+  // Navigate to recommendations page
+  switchPage('recommendations');
+  
+  try {
+    // Load available movies from cache or fetch if empty
+    let availableMovies = [...availableMoviesForRecommendation];
+    if (availableMovies.length === 0) {
+      // Fetch trending movies as the pool for recommendations
+      const trendingMoviesWeek = await fetchTMDb('/trending/movie/week').catch(() => ({ results: [] }));
+      const trendingMoviesDay = await fetchTMDb('/trending/movie/day').catch(() => ({ results: [] }));
+      
+      const weekMovies = (trendingMoviesWeek.results || []).map(movie => normalizeMediaItem(movie, 'movie'));
+      const dayMovies = (trendingMoviesDay.results || []).map(movie => normalizeMediaItem(movie, 'movie'));
+      
+      availableMovies = [...weekMovies, ...dayMovies];
+      availableMoviesForRecommendation = availableMovies;
+    }
+    
+    // Get genre scores from watched movies
+    const genreScores = getGenreScores(watchedMovies);
+    const watchedIds = new Set(watchedMovies.map(m => m.dbId || m.id));
+    
+    // Score all available movies
+    const movieScores = availableMovies.map(movie => ({
+      movie,
+      score: scoreMovie(movie, genreScores, watchedIds)
+    })).filter(item => item.score > 0);
+    
+    // Sort by score and get top recommendations
+    const topRecommendations = movieScores
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map(item => item.movie);
+    
+    if (topRecommendations.length === 0) {
+      showNotification('No new recommendations available. Try adding more movies to your watched list!');
+      recommendationsEmptyState.classList.remove('hidden');
+      aiRecommendationsGrid.innerHTML = '';
+    } else {
+      recommendationsEmptyState.classList.add('hidden');
+      renderMovieGrid(aiRecommendationsGrid, topRecommendations);
+    }
+  } catch (e) {
+    console.error('Recommendation algorithm error:', e);
+    showNotification('Could not generate recommendations. Please try again.');
+  } finally {
+    aiRecommendationsBtn.disabled = false;
+    aiRecommendationsBtn.textContent = '🔄 Generate Recommendations';
+  }
+}
+
+// --- AI Recommendations Button ---
+if (aiRecommendationsBtn) {
+  aiRecommendationsBtn.addEventListener('click', generateAlgorithmRecommendations);
+}
+
+// --- Movie Recommendations Button ---
+if (movieRecommendationsBtn) {
+  movieRecommendationsBtn.addEventListener('click', async () => {
+    if (!currentUser) {
+      switchPage('login-required');
+      return;
+    }
+    await loadRecommendationsPage();
+    switchPage('recommendations');
+  });
+}
+
+// --- Playlist Modal Controls ---
+function openPlaylistModal() {
+  if (createPlaylistModal) {
+    createPlaylistModal.classList.remove('hidden');
+    createPlaylistModal.classList.add('flex');
+    if (playlistNameInput) playlistNameInput.focus();
+  }
+}
+
+function closePlaylistModal() {
+  if (createPlaylistModal) {
+    createPlaylistModal.classList.add('hidden');
+    createPlaylistModal.classList.remove('flex');
+  }
+  // Reset form
+  if (createPlaylistForm) createPlaylistForm.reset();
+}
+
+if (createPlaylistBtn) {
+  createPlaylistBtn.addEventListener('click', openPlaylistModal);
+}
+
+if (createPlaylistMainBtn) {
+  createPlaylistMainBtn.addEventListener('click', openPlaylistModal);
+}
+
+if (closePlaylistModalBtn) {
+  closePlaylistModalBtn.addEventListener('click', closePlaylistModal);
+}
+
+if (cancelPlaylistBtn) {
+  cancelPlaylistBtn.addEventListener('click', closePlaylistModal);
+}
+
+// Close modal when clicking backdrop
+if (createPlaylistModal) {
+  createPlaylistModal.addEventListener('click', (e) => {
+    if (e.target === createPlaylistModal) {
+      closePlaylistModal();
+    }
+  });
+}
+
+if (createPlaylistForm) {
+  createPlaylistForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!currentUser || currentUser.isAnonymous || currentUser.isGuest) {
+      showNotification('Please log in to create playlists', false);
+      return;
+    }
+    
+    const name = playlistNameInput.value.trim();
+    const description = playlistDescriptionInput.value.trim();
+    const isPublic = playlistPublicCheckbox.checked;
+    
+    if (!name) {
+      showNotification('Please enter a playlist name', false);
+      return;
+    }
+    
+    try {
+      await createPlaylist(APP_ID, currentUser.uid, { name, description, isPublic });
+      showNotification(`Playlist "${name}" created!`, true);
+      closePlaylistModal();
+    } catch (error) {
+      console.error('Error creating playlist:', error);
+      showNotification('Failed to create playlist', false);
+    }
+  });
+}
+
+// --- Search Handling ---
+if (homeSearchForm) {
+  homeSearchForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const query = homeSearchInput.value.trim();
+    if (query) {
+      // Hide carousels and show search results in main grid
+      if (upcomingMoviesCarousel) upcomingMoviesCarousel.parentElement.parentElement.classList.add('hidden');
+      if (topSeriesGrid) topSeriesGrid.parentElement.classList.add('hidden');
+      if (homeGrid) homeGrid.parentElement.classList.remove('hidden');
+      
+      loader.classList.remove('hidden');
+      
+      try {
+        // Search both movies and TV series in parallel
+        const [moviesRes, seriesRes] = await Promise.all([
+          fetchTMDb('/search/movie', `query=${encodeURIComponent(query)}`).catch(() => ({ results: [] })),
+          searchTVSeries(query).catch(() => [])
+        ]);
+        
+        console.log('Search results - Movies:', moviesRes.results?.length || 0, 'Series:', seriesRes?.length || 0);
+        
+        // Normalize and combine results
+        const movies = (moviesRes.results || []).map(m => {
+          try {
+            return normalizeMediaItem(m, 'movie');
+          } catch (e) {
+            console.error('Error normalizing movie:', e, m);
+            return null;
+          }
+        }).filter(Boolean);
+        
+        const series = (seriesRes || []).map(s => {
+          try {
+            console.log('Raw TVDB series from search:', s);
+            const normalized = normalizeMediaItem(s, 'series');
+            console.log('Normalized series:', normalized);
+            return normalized;
+          } catch (e) {
+            console.error('Error normalizing series:', e, s);
+            return null;
+          }
+        }).filter(Boolean);
+        
+        // Enrich series with English titles if needed (async)
+        const enrichedSeries = await Promise.all(
+          series.map(s => enrichSeriesWithEnglishTitle(s))
+        );
+        
+        // Mix them together
+        const combined = [...movies.slice(0, 15), ...enrichedSeries.slice(0, 15)];
+        console.log('Combined results:', combined.length, 'items');
+        
+        loader.classList.add('hidden');
+        renderMovieGrid(homeGrid, combined);
+      } catch (err) {
+        console.error('Search failed:', err);
+        loader.classList.add('hidden');
+        showNotification('Search failed. Please try again.', true);
+      }
+    }
+  });
+}
+
+if (homeSearchInput) {
+  homeSearchInput.addEventListener('input', () => { 
+    if (homeSearchInput.value.trim() === '') loadHomePageContent();
+  });
+}
+
+if (myListSearchInput) {
+  myListSearchInput.addEventListener('input', () => {
+    const query = myListSearchInput.value.trim().toLowerCase();
+    const preFilteredMovies = myListPageMovies;
+    const searchFilteredMovies = preFilteredMovies.filter(movie => movie.title.toLowerCase().includes(query));
+    renderMovieGrid(myListGrid, searchFilteredMovies, { showStatus: true });
+  });
+}
+
+// --- Navigation Clicks ---
+if (navLinks.home) navLinks.home.addEventListener('click', (e) => { e.preventDefault(); switchPage('home'); loadHomePageContent(); });
+if (navLinks.myList) navLinks.myList.addEventListener('click', (e) => { e.preventDefault(); switchPage('my-list'); loadMyListPage(); });
+
+// Browse Dropdown Behavior
+const browseDropdownContainer = document.querySelector('.browse-dropdown-container');
+if (browseDropdownContainer && browseDropdown) {
+  // Show dropdown on hover
+  browseDropdownContainer.addEventListener('mouseenter', () => {
+    browseDropdown.classList.remove('hidden');
+  });
+  
+  browseDropdownContainer.addEventListener('mouseleave', () => {
+    browseDropdown.classList.add('hidden');
+  });
+}
+
+// Browse Menu Item Clicks
+if (browseMenuMovies) {
+  browseMenuMovies.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (browseDropdown) browseDropdown.classList.add('hidden');
+    switchPage('browse-movies');
+    loadBrowseMoviesPage();
+  });
+}
+
+if (browseMenuSeries) {
+  browseMenuSeries.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (browseDropdown) browseDropdown.classList.add('hidden');
+    switchPage('browse-series');
+    loadBrowseSeriesPage();
+  });
+}
+
+if (browseMenuActors) {
+  browseMenuActors.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (browseDropdown) browseDropdown.classList.add('hidden');
+    showNotification('Actor browsing coming soon!', true);
+  });
+}
+
+if (browseMenuDirectors) {
+  browseMenuDirectors.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (browseDropdown) browseDropdown.classList.add('hidden');
+    showNotification('Director browsing coming soon!', true);
+  });
+}
+
+// --- Movie Browse Filter Dropdowns ---
+if (movieGenreFilterBtn) {
+  movieGenreFilterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    movieGenreDropdown?.classList.toggle('hidden');
+    movieKeywordsDropdown?.classList.add('hidden');
+    movieRatingDropdown?.classList.add('hidden');
+  });
+}
+
+if (movieKeywordsFilterBtn) {
+  movieKeywordsFilterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    movieKeywordsDropdown?.classList.toggle('hidden');
+    movieGenreDropdown?.classList.add('hidden');
+    movieRatingDropdown?.classList.add('hidden');
+  });
+}
+
+if (movieRatingFilterBtn) {
+  movieRatingFilterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    movieRatingDropdown?.classList.toggle('hidden');
+    movieGenreDropdown?.classList.add('hidden');
+    movieKeywordsDropdown?.classList.add('hidden');
+  });
+}
+
+// Movie Browse Search
+if (movieBrowseSearchForm) {
+  movieBrowseSearchForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const query = movieBrowseSearchInput?.value.trim();
+    if (!query) return;
+    
+    try {
+      movieBrowseGrid.innerHTML = '<div class=\"col-span-full text-center text-gray-400\">Loading...</div>';
+      movieBrowseResultsTitle.textContent = `Search: "${query}"`;
+      
+      const data = await fetchTMDb('/search/movie', `query=${encodeURIComponent(query)}`);
+      const movies = (data.results || []).map(movie => normalizeMediaItem(movie, 'movie'));
+      
+      if (movies.length === 0) {
+        movieBrowseGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center">No movies found</p>';
+      } else {
+        renderMovieGrid(movieBrowseGrid, movies);
+      }
+      
+      // Show filter badge and store the search filter
+      activeMovieFilters = [{ type: 'search', query, name: `Search: "${query}"` }];
+      renderMovieFilterBadges();
+    } catch (error) {
+      console.error('Error searching movies:', error);
+      movieBrowseGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center">Error searching movies</p>';
+    }
+  });
+}
+
+// Movie Clear All Filters
+if (movieClearAllBtn) {
+  movieClearAllBtn.addEventListener('click', async () => {
+    activeMovieFilters = [];
+    if (movieBrowseSearchInput) movieBrowseSearchInput.value = '';
+    await populateMovieDropdowns();
+    renderMovieFilterBadges();
+    await loadMovieBrowseResults();
+  });
+}
+
+// --- Series Browse Filter Dropdowns ---
+if (seriesGenreFilterBtn) {
+  seriesGenreFilterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    seriesGenreDropdown?.classList.toggle('hidden');
+    seriesNetworksDropdown?.classList.add('hidden');
+    seriesStatusDropdown?.classList.add('hidden');
+    seriesCountryDropdown?.classList.add('hidden');
+    seriesLanguageDropdown?.classList.add('hidden');
+  });
+}
+
+if (seriesNetworksFilterBtn) {
+  seriesNetworksFilterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    seriesNetworksDropdown?.classList.toggle('hidden');
+    seriesGenreDropdown?.classList.add('hidden');
+    seriesStatusDropdown?.classList.add('hidden');
+    seriesCountryDropdown?.classList.add('hidden');
+    seriesLanguageDropdown?.classList.add('hidden');
+  });
+}
+
+if (seriesStatusFilterBtn) {
+  seriesStatusFilterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    seriesStatusDropdown?.classList.toggle('hidden');
+    seriesGenreDropdown?.classList.add('hidden');
+    seriesNetworksDropdown?.classList.add('hidden');
+    seriesCountryDropdown?.classList.add('hidden');
+    seriesLanguageDropdown?.classList.add('hidden');
+  });
+}
+
+if (seriesCountryFilterBtn) {
+  seriesCountryFilterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    seriesCountryDropdown?.classList.toggle('hidden');
+    seriesGenreDropdown?.classList.add('hidden');
+    seriesNetworksDropdown?.classList.add('hidden');
+    seriesStatusDropdown?.classList.add('hidden');
+    seriesLanguageDropdown?.classList.add('hidden');
+  });
+}
+
+if (seriesLanguageFilterBtn) {
+  seriesLanguageFilterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    seriesLanguageDropdown?.classList.toggle('hidden');
+    seriesGenreDropdown?.classList.add('hidden');
+    seriesNetworksDropdown?.classList.add('hidden');
+    seriesStatusDropdown?.classList.add('hidden');
+    seriesCountryDropdown?.classList.add('hidden');
+  });
+}
+
+// Series Browse Search
+if (seriesBrowseSearchForm) {
+  seriesBrowseSearchForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const query = seriesBrowseSearchInput?.value.trim();
+    if (!query) return;
+
+    const searchName = `Search: "${query}"`;
+    const existingIndex = activeSeriesFilters.findIndex(f => f.type === 'search');
+    if (existingIndex >= 0) {
+      activeSeriesFilters.splice(existingIndex, 1);
+    }
+    activeSeriesFilters.push({ type: 'search', query, name: searchName });
+    await populateSeriesDropdowns();
+    renderSeriesFilterBadges();
+    await loadSeriesBrowseResults();
+  });
+}
+
+// Series Clear All Filters
+if (seriesClearAllBtn) {
+  seriesClearAllBtn.addEventListener('click', async () => {
+    activeSeriesFilters = [];
+    if (seriesBrowseSearchInput) seriesBrowseSearchInput.value = '';
+    if (seriesBrowseResultsTitle) seriesBrowseResultsTitle.textContent = 'Popular Series';
+    selectedSeriesCountry = 'usa';
+    selectedSeriesLanguage = 'eng';
+    if (seriesCountryLabel) seriesCountryLabel.textContent = 'Country: USA';
+    if (seriesLanguageLabel) seriesLanguageLabel.textContent = 'Language: ENG';
+    await populateSeriesDropdowns();
+    renderSeriesFilterBadges();
+    await loadSeriesBrowseResults();
+  });
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+  const movieFilterContainers = document.querySelectorAll('.movie-filter-dropdown');
+  const seriesFilterContainers = document.querySelectorAll('.series-filter-dropdown');
+  
+  let clickedInside = false;
+  movieFilterContainers.forEach(container => {
+    if (container.contains(e.target)) clickedInside = true;
+  });
+  seriesFilterContainers.forEach(container => {
+    if (container.contains(e.target)) clickedInside = true;
+  });
+  
+  if (!clickedInside) {
+    closeAllMovieDropdowns();
+    closeAllSeriesDropdowns();
+  }
+});
+
+// --- Profile Menu Dropdown ---
+const profileIconBtn = document.getElementById('profile-icon-btn');
+const profileDropdown = document.getElementById('profile-dropdown');
+const profileMenuContainer = document.getElementById('profile-menu-container');
+
+if (profileIconBtn) {
+  profileIconBtn.addEventListener('click', () => {
+    if (profileDropdown) {
+      profileDropdown.classList.toggle('hidden');
+      profileIconBtn.setAttribute('aria-expanded', profileDropdown.classList.contains('hidden') ? 'false' : 'true');
+    }
+  });
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (profileMenuContainer && !profileMenuContainer.contains(e.target)) {
+    if (profileDropdown) profileDropdown.classList.add('hidden');
+    if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
+  }
+});
+
+// Profile menu item clicks
+const profileMenuProfile = document.getElementById('profile-menu-profile');
+const profileMenuPlaylists = document.getElementById('profile-menu-playlists');
+const profileMenuSettings = document.getElementById('profile-menu-settings');
+const profileMenuNotifications = document.getElementById('profile-menu-notifications');
+const profileMenuLogout = document.getElementById('profile-menu-logout');
+
+if (profileMenuProfile) {
+  profileMenuProfile.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchPage('user-profile');
+    if (profileDropdown) profileDropdown.classList.add('hidden');
+    if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
+  });
+}
+
+if (profileMenuPlaylists) {
+  profileMenuPlaylists.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchPage('playlists');
+    if (profileDropdown) profileDropdown.classList.add('hidden');
+    if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
+  });
+}
+
+if (profileMenuSettings) {
+  profileMenuSettings.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchPage('settings');
+    if (profileDropdown) profileDropdown.classList.add('hidden');
+    if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
+  });
+}
+
+if (profileMenuNotifications) {
+  profileMenuNotifications.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchPage('notifications');
+    if (profileDropdown) profileDropdown.classList.add('hidden');
+    if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
+  });
+}
+
+if (profileMenuLogout) {
+  profileMenuLogout.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleLogout();
+    if (profileDropdown) profileDropdown.classList.add('hidden');
+    if (profileIconBtn) profileIconBtn.setAttribute('aria-expanded', 'false');
+  });
+}
+
+
+// --- Modal & Actor Modal Event Handlers ---
+// Clicking backdrop closes modals
+document.getElementById('movie-modal').addEventListener('click', (ev) => { if (ev.target === document.getElementById('movie-modal')) closeMovieModal(); });
+document.getElementById('actor-modal').addEventListener('click', (ev) => { if (ev.target === document.getElementById('actor-modal')) closeActorModal(); });
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' || ev.key === 'Esc') {
+    closeMovieModal();
+    closeActorModal();
+  }
+});
+
+// --- Handler: open movie modal and wire modal controls ---
+// Centralized handler for clicking a movie card
+document.addEventListener('movieCardClick', async (e) => {
+  const mediaId = e.detail.movieId;
+  console.log('Modal opening for mediaId:', mediaId);
+  
+  try {
+    let media, credits;
+    
+    // Determine type and fetch from appropriate API
+    if (String(mediaId).startsWith('tvdb_')) {
+      console.log('Fetching series details for:', mediaId);
+      const seriesIdWithPrefix = String(mediaId).replace('tvdb_', '');
+      console.log('Series ID after removing prefix:', seriesIdWithPrefix);
+      
+      // Extract numeric ID if it has a prefix like "series-411597"
+      let seriesId = seriesIdWithPrefix;
+      if (seriesIdWithPrefix.includes('-')) {
+        const match = seriesIdWithPrefix.match(/(\d+)$/);
+        if (match) {
+          seriesId = match[1];
+          console.log('Extracted numeric series ID:', seriesId);
+        }
+      }
+      
+      try {
+        media = await getSeriesDetails(seriesId);
+        console.log('Series details received:', media);
+        
+        if (!media) {
+          console.error('getSeriesDetails returned null for ID:', seriesId, '(original mediaId:', mediaId, ')');
+          showNotification('Could not load series details. The series may not be available.', true);
+          return;
+        }
+        
+        if (media && !tvdbHasEnglishOverview(media)) {
+          const translation = await getSeriesTranslation(seriesId, 'eng');
+          if (translation?.overview) {
+            media.overviewTranslations = Array.isArray(media.overviewTranslations)
+              ? [...media.overviewTranslations, { language: 'eng', overview: translation.overview }]
+              : media.overviewTranslations || { eng: translation.overview };
+          }
+        }
+
+        media = normalizeMediaItem(media, 'series');
+        console.log('Normalized series:', media);
+        
+        // Enrich with English title if needed
+        if (media._needsTitleTranslation) {
+          console.log('Enriching series with English title during modal open...');
+          media = await enrichSeriesWithEnglishTitle(media);
+          console.log('Enriched series:', media);
+        }
+        
+        credits = buildTvdbCredits(media);
+      } catch (seriesError) {
+        console.error('Error fetching series:', seriesError);
+        showNotification('Failed to load series details: ' + seriesError.message, true);
+        return;
+      }
+    } else {
+      // Handle both 'tmdb_123' format and plain '123' numeric IDs
+      const movieId = String(mediaId).replace('tmdb_', '');
+      [media, credits] = await Promise.all([
+        fetchTMDb(`/movie/${movieId}`),
+        fetchTMDb(`/movie/${movieId}/credits`)
+      ]);
+      media = normalizeMediaItem(media, 'movie');
+    }
+    
+    currentModalMovie = media;
+    currentModalCredits = credits;
+    const movieInfo = userMovieList.get(String(mediaId)) || {};
+    openMovieModal(media, credits, { movieInfo, settings });
+
+    // Wire modal controls here (status, rating, add popover, watchtime):
+    const modalContent = document.getElementById('modal-content');
+
+    // Language toggle for series descriptions
+    const toggleLangBtn = modalContent.querySelector('#toggle-language-btn');
+    if (toggleLangBtn) {
+      const overviewText = modalContent.querySelector('#modal-overview-text');
+      const titleText = modalContent.querySelector('#modal-title');
+      toggleLangBtn.addEventListener('click', () => {
+        const currentLang = toggleLangBtn.dataset.showing;
+        if (currentLang === 'english') {
+          // Switch to original
+          const original = overviewText.dataset.overviewOriginal;
+          overviewText.textContent = original;
+          
+          // Also toggle title if available
+          if (titleText) {
+            const originalTitle = titleText.dataset.titleOriginal;
+            if (originalTitle) {
+              titleText.textContent = originalTitle;
+            }
+          }
+          
+          toggleLangBtn.textContent = 'Show English';
+          toggleLangBtn.dataset.showing = 'original';
+        } else {
+          // Switch to English
+          const english = overviewText.dataset.overviewEnglish;
+          overviewText.textContent = english;
+          
+          // Also toggle title if available
+          if (titleText) {
+            const englishTitle = titleText.dataset.titleEnglish;
+            if (englishTitle) {
+              titleText.textContent = englishTitle;
+            }
+          }
+          
+          toggleLangBtn.textContent = 'Show Original';
+          toggleLangBtn.dataset.showing = 'english';
+        }
+      });
+    }
+
+    // Translate button for non-English descriptions
+    const translateBtn = modalContent.querySelector('#translate-btn');
+    if (translateBtn) {
+      const overviewText = modalContent.querySelector('#modal-overview-text');
+      translateBtn.addEventListener('click', async () => {
+        const originalText = overviewText.textContent;
+        
+        // Check if AI proxy is available
+        const hasAiProxy = typeof window.__gemini_proxy_url !== 'undefined' && window.__gemini_proxy_url;
+        if (!hasAiProxy) {
+          showNotification('Translation requires a configured AI proxy.', true);
+          return;
+        }
+        
+        translateBtn.innerHTML = '<span>Translating...</span>';
+        translateBtn.disabled = true;
+        
+        try {
+          const prompt = `Translate the following text to English. Only return the English translation, nothing else:\n\n${originalText}`;
+          const payload = { contents: [{ parts: [{ text: prompt }] }] };
+          const result = await callGeminiApi(payload);
+          const translation = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          
+          if (translation) {
+            // Store the translation
+            overviewText.dataset.overviewEnglish = translation;
+            overviewText.textContent = translation;
+            
+            // Replace button with toggle
+            translateBtn.remove();
+            const descHeader = modalContent.querySelector('.mb-4 .flex');
+            if (descHeader) {
+              const toggleBtn = document.createElement('button');
+              toggleBtn.id = 'toggle-language-btn';
+              toggleBtn.type = 'button';
+              toggleBtn.className = 'text-xs text-sky-400 hover:text-sky-300 transition-colors';
+              toggleBtn.dataset.showing = 'english';
+              toggleBtn.textContent = 'Show Original';
+              descHeader.appendChild(toggleBtn);
+              
+              // Add toggle handler
+              toggleBtn.addEventListener('click', () => {
+                const currentLang = toggleBtn.dataset.showing;
+                if (currentLang === 'english') {
+                  overviewText.textContent = originalText;
+                  toggleBtn.textContent = 'Show English';
+                  toggleBtn.dataset.showing = 'original';
+                } else {
+                  overviewText.textContent = translation;
+                  toggleBtn.textContent = 'Show Original';
+                  toggleBtn.dataset.showing = 'english';
+                }
+              });
+            }
+          } else {
+            showNotification('Translation failed. Please try again.', true);
+            translateBtn.innerHTML = '<span>Translate to English</span>';
+            translateBtn.disabled = false;
+          }
+        } catch (err) {
+          console.error('Translation error:', err);
+          let errorMsg = 'Could not translate: ';
+          if (err.message.includes('429') || err.message.includes('quota') || err.message.includes('RESOURCE_EXHAUSTED')) {
+            errorMsg = 'API quota limit reached. Check your usage at https://aistudio.google.com/apikey or wait and try again.';
+          } else {
+            errorMsg += err.message;
+          }
+          showNotification(errorMsg, true);
+          translateBtn.innerHTML = '<span>Translate to English</span>';
+          translateBtn.disabled = false;
+        }
+      });
+    }
+
+    const statusSelect = modalContent.querySelector('#modal-status-select');
+    if (statusSelect) {
+      statusSelect.value = movieInfo.status || '';
+      statusSelect.addEventListener('change', async () => {
+        try {
+          const newStatus = statusSelect.value || '';
+          await ensureGuestSession();
+          await localUpdateMovieStatus(mediaId, media, newStatus);
+          // re-render modal so UI updates to show/hide progress/rating label
+          currentModalMovie = media;
+          currentModalCredits = credits;
+          // Re-open modal contents with updated movieInfo
+          openMovieModal(media, credits, { movieInfo: userMovieList.get(String(mediaId)) || {}, settings });
+        } catch (err) {
+          console.error('Status change failed:', err);
+          showNotification('Could not update status.', true);
+        }
+      });
+    }
+
+    // Rating input handler (numeric)
+    const ratingInput = modalContent.querySelector('#modal-rating-input');
+    if (ratingInput) {
+      ratingInput.addEventListener('change', async () => {
+        try {
+          const ratingValue = ratingInput.value.trim();
+          if (!ratingValue || isNaN(Number(ratingValue))) return;
+          const rating = Number(ratingValue);
+          
+          // Validate rating based on system
+          let isValid = false;
+          if (settings.ratingSystem === '1-10') isValid = rating >= 1 && rating <= 10 && Number.isInteger(rating);
+          else if (settings.ratingSystem === '1-100') isValid = rating >= 1 && rating <= 100 && Number.isInteger(rating);
+          
+          if (!isValid) {
+            showNotification('Invalid rating value.', true);
+            return;
+          }
+          
+          await ensureGuestSession();
+          await localUpdateUserRating(mediaId, media, rating);
+          
+          // Set status to "watched" when rating is entered
+          if (!movieInfo.status || movieInfo.status !== 'watched') {
+            await localUpdateMovieStatus(mediaId, media, 'watched');
+          }
+          
+          showNotification('Rating saved!', false);
+          openMovieModal(media, credits, { movieInfo: userMovieList.get(String(mediaId)) || {}, settings });
+        } catch (err) {
+          console.error('Rating update failed:', err);
+          showNotification('Could not update rating.', true);
+        }
+      });
+    }
+
+
+    // Add to List button + popover logic
+    const addBtn = modalContent.querySelector('#modal-add-to-list-btn');
+    const modalPopover = modalContent.querySelector('#modal-add-popover');
+    if (addBtn) {
+      addBtn.textContent = (movieInfo && (movieInfo.status || movieInfo.rating)) ? 'Remove from list' : 'Add to List';
+      addBtn.addEventListener('click', async () => {
+        try {
+          await ensureGuestSession();
+          const isIn = userMovieList.has(String(mediaId));
+          if (isIn) {
+            await localRemoveMovie(mediaId);
+            showNotification('Removed from your list.', false);
+            openMovieModal(media, credits, { movieInfo: userMovieList.get(String(mediaId)) || {}, settings });
+            return;
+          }
+          // If a status is selected in the select, use it
+          const statusSelectEl = modalContent.querySelector('#modal-status-select');
+          const allowed = ['watching','watched','planning'];
+          const selected = statusSelectEl ? (statusSelectEl.value || '').trim() : '';
+          if (selected && allowed.includes(selected)) {
+            await localUpdateMovieStatus(mediaId, media, selected);
+            showNotification('Added to your list.', false);
+            openMovieModal(media, credits, { movieInfo: userMovieList.get(String(mediaId)) || {}, settings });
+            return;
+          }
+          // Otherwise open the popover and request explicit status
+          if (modalPopover) {
+            modalPopover.classList.remove('hidden');
+            const firstOpt = modalPopover.querySelector('.modal-list-option');
+            if (firstOpt) firstOpt.focus();
+          }
+          addBtn.classList.remove('shake');
+          void addBtn.offsetWidth;
+          addBtn.classList.add('shake');
+          setTimeout(() => addBtn.classList.remove('shake'), 400);
+        } catch (err) {
+          console.error('Add/remove from modal failed:', err);
+          showNotification('Could not update list.', true);
+        }
+      });
+
+      // Popover option clicks
+      if (modalPopover) {
+        modalPopover.querySelectorAll('.modal-list-option').forEach(opt => {
+          opt.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            const status = opt.dataset.status;
+            try {
+              await ensureGuestSession();
+              await localUpdateMovieStatus(mediaId, media, status);
+              showNotification(`Set to ${opt.textContent}.`, false);
+              openMovieModal(media, credits, { movieInfo: userMovieList.get(String(mediaId)) || {}, settings });
+            } catch (err) {
+              console.error('Modal popover set status failed:', err);
+              showNotification('Could not update status.', true);
+            }
+          });
+        });
+
+        // hover handlers to keep popover open when interacting
+        let modalPopoverHideTimeout = null;
+        modalPopover._hovering = false;
+        const scheduleHide = () => { if (modalPopoverHideTimeout) clearTimeout(modalPopoverHideTimeout); modalPopoverHideTimeout = setTimeout(() => { if (!modalPopover._hovering) modalPopover.classList.add('hidden'); }, 200); };
+        addBtn.addEventListener('mouseenter', () => modalPopover.classList.remove('hidden'));
+        addBtn.addEventListener('mouseleave', scheduleHide);
+        modalPopover.addEventListener('mouseenter', () => { modalPopover._hovering = true; modalPopover.classList.remove('hidden'); });
+        modalPopover.addEventListener('mouseleave', () => { modalPopover._hovering = false; scheduleHide(); });
+      }
+    }
+
+    // Watch time input wiring (for movies)
+    const watchInput = modalContent.querySelector('#modal-watchtime-input');
+    if (watchInput) {
+      const progressBar = modalContent.querySelector('#modal-progress-bar');
+      const progressLabel = modalContent.querySelector('#modal-progress-label');
+      watchInput.addEventListener('change', async () => {
+        let minutes = Number(watchInput.value);
+        if (isNaN(minutes) || minutes < 0) minutes = 0;
+        if (media.runtime && minutes > Number(media.runtime)) minutes = Number(media.runtime);
+        watchInput.value = minutes;
+        try {
+          await ensureGuestSession();
+          await localUpdateWatchTime(mediaId, media, minutes);
+          const pct = media.runtime ? Math.min(100, Math.round((minutes / media.runtime) * 100)) : 0;
+          if (progressBar) progressBar.style.width = pct + '%';
+          if (progressLabel) progressLabel.textContent = `${pct}% (${minutes} / ${media.runtime || '?'} min)`;
+        } catch (err) {
+          console.error('Failed to update watch time:', err);
+          showNotification('Could not update progress.', true);
+        }
+      });
+    }
+
+    // Episodes input wiring (for TV series)
+    const episodesInput = modalContent.querySelector('#modal-episodes-input');
+    const seasonSelect = modalContent.querySelector('#modal-season-select');
+    const episodesTotal = modalContent.querySelector('#modal-episodes-total');
+    const castList = modalContent.querySelector('#modal-cast-list');
+    
+    if (episodesInput && seasonSelect) {
+      const updateSeasonTotal = async (seasonNumber) => {
+        if (!episodesTotal) return;
+        episodesTotal.textContent = '/ --';
+        const total = await getSeasonEpisodeTotal(media, seasonNumber);
+        episodesTotal.textContent = typeof total === 'number' ? `/ ${total}` : '/ --';
+      };
+
+      const updateSeasonCast = async (seasonNumber) => {
+        if (!castList || !media || !media.seasons) return;
+        const seasonId = getSeasonIdForNumber(media, seasonNumber);
+        if (!seasonId) return;
+        castList.innerHTML = '<span class="text-xs text-gray-400">Loading season cast...</span>';
+        if (seasonCastCache.has(seasonId)) {
+          const cached = seasonCastCache.get(seasonId);
+          if (cached && cached.length) {
+            castList.innerHTML = cached.map(a => `<a href="#" class="actor-link text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-full px-3 py-1 transition-colors" data-actor-id="${a.id}" data-actor-name="${a.name}">${a.name}</a>`).join('');
+          }
+          return;
+        }
+        const seasonDetails = await getSeasonDetails(seasonId);
+        let seasonCast = buildTvdbCastFromData(seasonDetails);
+
+        if (!seasonCast.length && Array.isArray(seasonDetails?.episodes)) {
+          const episodes = seasonDetails.episodes.slice(0, 6);
+          const episodeDetails = await Promise.all(
+            episodes.map((ep) => ep?.id ? getEpisodeDetails(ep.id) : null)
+          );
+          const episodeCast = episodeDetails.flatMap(ed => buildTvdbCastFromData(ed));
+          seasonCast = Array.from(new Map(episodeCast.map(c => [c.name, c])).values());
+        }
+
+        seasonCastCache.set(seasonId, seasonCast);
+        if (seasonCast && seasonCast.length) {
+          castList.innerHTML = seasonCast.map(a => `<a href="#" class="actor-link text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-full px-3 py-1 transition-colors" data-actor-id="${a.id}" data-actor-name="${a.name}">${a.name}</a>`).join('');
+        } else {
+          castList.innerHTML = '<span class="text-xs text-gray-400">No season cast available.</span>';
+        }
+      };
+
+      // Update episodes input when season changes
+      seasonSelect.addEventListener('change', () => {
+        const selectedSeason = Number(seasonSelect.value);
+        const movieInfo = userMovieList.get(String(mediaId)) || {};
+        const episodesData = movieInfo.episodesWatched || {};
+        const episodes = typeof episodesData === 'object' ? (episodesData[`s${selectedSeason}`] || 0) : 0;
+        episodesInput.value = episodes;
+        updateSeasonTotal(selectedSeason);
+        updateSeasonCast(selectedSeason);
+      });
+      
+      // Save episodes when changed
+      episodesInput.addEventListener('change', async () => {
+        let episodes = Number(episodesInput.value);
+        if (isNaN(episodes) || episodes < 0) episodes = 0;
+        episodesInput.value = episodes;
+        
+        const selectedSeason = Number(seasonSelect.value);
+        const movieInfo = userMovieList.get(String(mediaId)) || {};
+        const episodesData = typeof movieInfo.episodesWatched === 'object' ? { ...movieInfo.episodesWatched } : {};
+        episodesData[`s${selectedSeason}`] = episodes;
+        
+        try {
+          await ensureGuestSession();
+          await localUpdateEpisodes(mediaId, media, episodesData, selectedSeason);
+          showNotification(`Season ${selectedSeason}: ${episodes} episodes`, false);
+          
+          // Update the dropdown to show progress
+          const options = seasonSelect.querySelectorAll('option');
+          options.forEach(opt => {
+            const season = Number(opt.value);
+            const eps = episodesData[`s${season}`] || 0;
+            const progress = eps > 0 ? ` (${eps} eps)` : '';
+            opt.textContent = `Season ${season}${progress}`;
+          });
+        } catch (err) {
+          console.error('Failed to update episodes:', err);
+          showNotification('Could not update episodes.', true);
+        }
+      });
+
+      updateSeasonTotal(Number(seasonSelect.value));
+      updateSeasonCast(Number(seasonSelect.value));
+    }
+
+  } catch (error) {
+    showNotification('Could not open movie details.', true);
+    console.error(error);
+  }
+});
+
+// Card-level Add button event (the floating green + on cards)
+document.addEventListener('addToListClick', async (e) => {
+  const movieId = e.detail.movieId;
+  try {
+    const movie = await fetchTMDb(`/movie/${movieId}`);
+    await ensureGuestSession();
+    // default to 'planning' when adding via card
+    await localUpdateMovieStatus(movieId, movie, 'planning');
+    showNotification('Added to your list!', false);
+  } catch (err) {
+    console.error('Card add failed:', err);
+    showNotification('Could not add movie to your list.', true);
+  }
+});
+
+// Actor page and tooltip events (forwarded from ui)
+document.addEventListener('openActorPage', async (e) => {
+  const pid = e.detail.personId;
+  try {
+    const person = await fetchTMDb(`/person/${pid}`);
+    const credits = await fetchTMDb(`/person/${pid}/combined_credits`);
+    showActorPage(person, credits);
+  } catch (err) {
+    console.error('Failed to open actor page:', err);
+  }
+});
+
+document.addEventListener('showActorTooltip', async (e) => {
+  const link = e.detail.link;
+  // minimal tooltip handling: fetch and populate
+  const tip = document.getElementById('actor-tooltip');
+  if (!tip || !link) return;
+  const actorId = link.dataset.actorId;
+  if (!actorId) return;
+  tip.classList.remove('hidden');
+  tip.textContent = 'Loading...';
+  try {
+    const person = await fetchTMDb(`/person/${actorId}`);
+    const name = person.name || link.dataset.actorName || '';
+    const bio = person.biography ? (person.biography.substring(0,180) + (person.biography.length>180? '…':'')) : 'No biography available.';
+    tip.innerHTML = `<div class="font-semibold text-white mb-1">${name}</div><div class="text-xs text-gray-300">${bio}</div>`;
+    const rect = link.getBoundingClientRect();
+    const docEl = document.documentElement;
+    tip.style.left = `${Math.min(Math.max(rect.left, 8), docEl.clientWidth - tip.offsetWidth - 8)}px`;
+    tip.style.top = `${rect.bottom + window.scrollY + 8}px`;
+  } catch (err) {
+    tip.innerHTML = `<div class="text-xs text-gray-300">Could not load preview.</div>`;
+  }
+});
+
+document.addEventListener('hideActorTooltip', (e) => {
+  const tip = document.getElementById('actor-tooltip');
+  if (!tip) return;
+  tip.classList.add('hidden');
+  tip.innerHTML = '';
+});
+
+// --- Settings ---
+document.getElementById('theme-select').addEventListener('change', (e) => { 
+  settings.theme = e.target.value; 
+  applyTheme(settings.theme); 
+  saveSettings(); 
+});
+document.getElementById('rating-system-select').addEventListener('change', (e) => { 
+  settings.ratingSystem = e.target.value; 
+  saveSettings(); 
+});
+// Set initial values in settings form
+document.getElementById('theme-select').value = settings.theme || 'default';
+document.getElementById('rating-system-select').value = settings.ratingSystem || '1-10';
+
+// --- Initial load ---
+loadHomePageContent();

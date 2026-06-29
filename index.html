@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b0d10">
+    <title>blist - Your Movie Universe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="text-gray-200">
+
+    <!-- App Container -->
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="site-header sticky top-0 z-50">
+            <nav class="site-nav" aria-label="Primary navigation">
+                <div class="site-nav-row">
+                    <a href="#" id="logo" class="brand-mark" aria-label="Blist home">
+                        <span class="brand-frame" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span>blist</span>
+                    </a>
+
+                    <button id="mobile-menu-btn" class="mobile-menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="primary-navigation">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                    </button>
+
+                    <div id="primary-navigation" class="primary-navigation">
+                        <a href="#" id="nav-home" class="nav-link active">Home</a>
+                        <a href="#" id="browse-menu-movies" class="nav-link">Films</a>
+                        <a href="#" id="browse-menu-series" class="nav-link">Series</a>
+                        <a href="#" id="nav-my-list" class="nav-link hidden">My List</a>
+                        <a href="#" id="nav-forum" class="nav-link">Community</a>
+                    </div>
+
+                    <div class="nav-actions">
+                        <form id="home-search-form" class="global-search" role="search">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                            <input type="text" id="home-search-input" placeholder="Search titles…" aria-label="Search movies and series" enterkeyhint="search" autocomplete="off">
+                            <kbd>/</kbd>
+                        </form>
+                        <!-- Profile Icon with Dropdown -->
+                        <div id="profile-menu-container" class="relative hidden">
+                            <button id="profile-icon-btn" class="profile-avatar" aria-label="Profile menu" aria-expanded="false">
+                                <span id="profile-initials">U</span>
+                            </button>
+                            <div id="profile-dropdown" class="profile-dropdown hidden absolute right-0 mt-2 w-48 z-50">
+                                <a href="#" id="profile-menu-profile" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 first:rounded-t-md">Profile</a>
+                                <a href="#" id="profile-menu-playlists" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Playlists</a>
+                                <a href="#" id="profile-menu-settings" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Settings</a>
+                                <a href="#" id="profile-menu-notifications" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Notifications</a>
+                                <hr class="border-gray-700">
+                                <button id="profile-menu-logout" type="button" class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 last:rounded-b-md">Logout</button>
+                            </div>
+                        </div>
+                        <div id="auth-container" class="relative">
+                            <!-- Login/Logout button will be rendered here by JS -->
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Notification Bar -->
+        <div id="notification-bar" class="hidden bg-red-600 text-white text-center p-2" role="status" aria-live="polite"></div>
+
+        <!-- Global actor preview -->
+        <div id="actor-tooltip" class="actor-preview hidden" role="tooltip"></div>
+
+        <!-- Main Content -->
+        <main class="site-main flex-grow">
+            <!-- Home Page View -->
+            <div id="home-page">
+                <!-- Discovery home -->
+                <div id="home-public-view">
+                    <section id="featured-hero" class="featured-hero featured-hero-loading" aria-labelledby="featured-title">
+                        <img id="featured-backdrop" class="featured-backdrop" alt="" fetchpriority="high">
+                        <div class="featured-scrim"></div>
+                        <div class="featured-content">
+                            <p class="featured-kicker"><span></span> Featured this week</p>
+                            <h1 id="featured-title">Discover something worth remembering.</h1>
+                            <div id="featured-meta" class="featured-meta" aria-label="Featured title details"></div>
+                            <p id="featured-overview" class="featured-overview">Fresh films, enduring favorites, and the stories everyone is talking about.</p>
+                            <div class="featured-actions">
+                                <button id="featured-details-btn" class="btn btn-primary" type="button">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7 8 5-8 5Z"/></svg>
+                                    View details
+                                </button>
+                                <button id="featured-watchlist-btn" class="btn btn-secondary" type="button">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                                    Add to watchlist
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="guest-home-cta" class="guest-home-cta">
+                        <p><strong>Make movie night yours.</strong> Track films and series, rate what you watch, and find your next favorite.</p>
+                        <button id="guest-join-btn" type="button" class="text-link">Create your free profile <span aria-hidden="true">→</span></button>
+                    </section>
+
+                    <!-- Discovery shelves -->
+                    <section class="media-shelf" aria-labelledby="trending-heading">
+                        <div class="section-heading"><div><p class="eyebrow">Right now</p><h2 id="trending-heading">Trending</h2></div><div class="shelf-controls"><button id="trending-prev" aria-label="Previous trending titles"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><button id="trending-next" aria-label="Next trending titles"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+                        <div class="shelf-viewport">
+                            <div id="trending-carousel" class="media-rail">
+                                <!-- Trending carousel items will be rendered here -->
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Upcoming Movies Carousel -->
+                    <section class="media-shelf" aria-labelledby="upcoming-heading">
+                        <div class="section-heading"><div><p class="eyebrow">On the horizon</p><h2 id="upcoming-heading">Coming soon</h2></div><div class="shelf-controls"><button id="upcoming-movies-prev" aria-label="Previous upcoming titles"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><button id="upcoming-movies-next" aria-label="Next upcoming titles"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+                        <div class="shelf-viewport">
+                            <div id="upcoming-movies-carousel" class="media-rail">
+                                <!-- Movie carousel items will be rendered here -->
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Top Movies Carousel -->
+                    <section class="media-shelf" aria-labelledby="top-movies-heading">
+                        <div class="section-heading"><div><p class="eyebrow">Critics' choice</p><h2 id="top-movies-heading">Essential films</h2></div><div class="shelf-controls"><button id="top-movies-prev" aria-label="Previous top films"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><button id="top-movies-next" aria-label="Next top films"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+                        <div class="shelf-viewport">
+                            <div id="home-movie-grid" class="media-rail">
+                                <!-- Top movie carousel items will be rendered here -->
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Top Series Carousel -->
+                    <section class="media-shelf" aria-labelledby="top-series-heading">
+                        <div class="section-heading"><div><p class="eyebrow">Worth the time</p><h2 id="top-series-heading">Standout series</h2></div><div class="shelf-controls"><button id="top-series-prev" aria-label="Previous top series"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><button id="top-series-next" aria-label="Next top series"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+                        <div class="shelf-viewport">
+                            <div id="top-series-grid" class="media-rail">
+                                <!-- Top series carousel items will be rendered here -->
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Logged-In Home Page (Activity Feed) -->
+                <div id="home-logged-in-view" class="signed-in-home hidden">
+                    <div class="section-heading signed-in-heading">
+                        <div><p class="eyebrow">Your Blist</p><h2>Continue the conversation</h2></div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2">
+                            <!-- Tabs -->
+                            <div class="flex gap-6 mb-8 border-b border-gray-700">
+                                <button id="home-activity-tab-activity" class="pb-3 px-2 text-lg font-semibold text-sky-400 border-b-2 border-sky-400">Activity</button>
+                                <button id="home-activity-tab-following" class="pb-3 px-2 text-lg font-semibold text-gray-400 hover:text-white transition-colors border-b-2 border-transparent">Following</button>
+                                <button id="home-activity-tab-global" class="pb-3 px-2 text-lg font-semibold text-gray-400 hover:text-white transition-colors border-b-2 border-transparent">Global</button>
+                            </div>
+
+                            <!-- Activity Content Area -->
+                            <div id="home-activity-content" class="space-y-6">
+                                <!-- Activity posts will be rendered here -->
+                            </div>
+                        </div>
+
+                        <aside class="space-y-6">
+                            <section class="personalized-callout">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7Z"/></svg>
+                                <p class="eyebrow">Picked for your taste</p>
+                                <h3>Find a more personal next watch.</h3>
+                                <p>Use your ratings and watch history to uncover recommendations built around you.</p>
+                                <button id="home-recommendations-link" type="button" class="btn btn-primary">Explore recommendations</button>
+                            </section>
+                            <section class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                                <h3 class="text-lg font-semibold text-white mb-3">Movies In Progress</h3>
+                                <div id="home-movies-in-progress" class="space-y-2">
+                                    <!-- In-progress movies rendered by JS -->
+                                </div>
+                            </section>
+
+                            <section class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                                <h3 class="text-lg font-semibold text-white mb-3">Series In Progress</h3>
+                                <div id="home-series-in-progress" class="space-y-2">
+                                    <!-- In-progress series rendered by JS -->
+                                </div>
+                            </section>
+                        </aside>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actor profile page -->
+            <div id="actor-page" class="hidden max-w-3xl mx-auto bg-gray-800 p-6 rounded-lg"></div>
+
+            <!-- Movie detail page -->
+            <div id="movie-page" class="hidden max-w-5xl mx-auto bg-gray-800 rounded-lg shadow-xl overflow-hidden relative flex flex-col md:flex-row"></div>
+
+            <!-- Browse Movies Page -->
+            <div id="browse-movies-page" class="hidden">
+                <p class="eyebrow">Explore the catalogue</p>
+                <h1 class="text-3xl font-bold text-white mb-6">Discover films</h1>
+                
+                <!-- Search Bar -->
+                <div class="mb-6">
+                    <form id="movie-browse-search-form" class="relative">
+                        <input type="text" id="movie-browse-search-input" placeholder="Search movies..." class="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-white placeholder-gray-400">
+                        <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Filter Row -->
+                <div class="mb-6 flex flex-wrap gap-3">
+                    <!-- Genre Dropdown -->
+                    <div class="relative movie-filter-dropdown">
+                        <button id="movie-genre-filter-btn" class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:border-red-500 transition-colors flex items-center gap-2 text-white font-medium">
+                            Genre
+                        </button>
+                        <div id="movie-genre-dropdown" class="hidden absolute top-full left-0 mt-2 w-56 max-h-96 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                            <!-- Genre options will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Tags Dropdown -->
+                    <div class="relative movie-filter-dropdown">
+                        <button id="movie-keywords-filter-btn" class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:border-red-500 transition-colors flex items-center gap-2 text-white font-medium">
+                            Tags &amp; Themes
+                        </button>
+                        <div id="movie-keywords-dropdown" class="hidden absolute top-full left-0 mt-2 w-56 max-h-96 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                            <!-- Tag options will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Rating Dropdown -->
+                    <div class="relative movie-filter-dropdown">
+                        <button id="movie-rating-filter-btn" class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:border-red-500 transition-colors flex items-center gap-2 text-white font-medium">
+                            Rating
+                        </button>
+                        <div id="movie-rating-dropdown" class="hidden absolute top-full left-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                            <!-- Rating options will be rendered here -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Active Filters Badge Area -->
+                <div id="movie-active-filters" class="mb-4 hidden">
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <div id="movie-filter-badges" class="flex flex-wrap gap-2">
+                            <!-- Filter badges will be rendered here -->
+                        </div>
+                        <button id="movie-clear-all-btn" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors text-white text-sm font-medium flex items-center gap-1">
+                            Clear all
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="movie-browse-results" class="mb-12 px-2 md:px-8 lg:px-12">
+                    <h2 id="movie-browse-results-title" class="text-2xl font-bold text-white mb-4">All Movies</h2>
+                    <div id="movie-browse-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 md:gap-6 justify-items-center">
+                        <!-- Movies will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- User Playlists Section (logged in users) -->
+                <section id="movie-playlists-section" class="mb-12 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-white">Your film playlists</h2>
+                        <button type="button" id="create-movie-playlist-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors">
+                            + Create Playlist
+                        </button>
+                    </div>
+                    <div id="movie-playlists-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <!-- Movie playlists will be rendered here -->
+                    </div>
+                </section>
+
+                <!-- Recommendations Section (logged in users) -->
+                <section id="movie-recommendations-section" class="mb-12 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-white">Recommended for you</h2>
+                        <button id="movie-recommendations-btn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors">
+                            Refresh recommendations
+                        </button>
+                    </div>
+                    <div id="movie-recommendations-empty" class="text-center py-8">
+                        <p class="text-gray-400">Add movies to your "Watched" list to get personalized recommendations!</p>
+                    </div>
+                    <div id="movie-recommendations-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <!-- Recommendations will be rendered here -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- Browse Series Page -->
+            <div id="browse-series-page" class="hidden">
+                <p class="eyebrow">Stories with room to grow</p>
+                <h1 class="text-3xl font-bold text-white mb-6">Discover series</h1>
+                
+                <!-- Search Bar -->
+                <div class="mb-6">
+                    <form id="series-browse-search-form" class="relative">
+                        <input type="text" id="series-browse-search-input" placeholder="Search TV series..." class="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-white placeholder-gray-400">
+                        <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Filter Row -->
+                <div class="mb-6 flex flex-wrap gap-3">
+                    <!-- Genre Dropdown -->
+                    <div class="relative series-filter-dropdown">
+                        <button id="series-genre-filter-btn" class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:border-red-500 transition-colors flex items-center gap-2 text-white font-medium">
+                            Genre
+                        </button>
+                        <div id="series-genre-dropdown" class="hidden absolute top-full left-0 mt-2 w-56 max-h-96 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                            <!-- Genre options will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Status Dropdown -->
+                    <div class="relative series-filter-dropdown">
+                        <button id="series-status-filter-btn" class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:border-red-500 transition-colors flex items-center gap-2 text-white font-medium">
+                            Status
+                        </button>
+                        <div id="series-status-dropdown" class="hidden absolute top-full left-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                            <!-- Status options will be rendered here -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="mb-6">
+                    <p class="text-sm font-semibold text-sky-200 mb-3">Series Tags</p>
+                    <div id="series-tag-quick-picks" class="flex flex-wrap gap-2">
+                        <!-- Series tag chips will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- Active Filters Badge Area -->
+                <div id="series-active-filters" class="mb-4 hidden">
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <div id="series-filter-badges" class="flex flex-wrap gap-2">
+                            <!-- Filter badges will be rendered here -->
+                        </div>
+                        <button id="series-clear-all-btn" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors text-white text-sm font-medium flex items-center gap-1">
+                            Clear all
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="series-browse-results" class="mb-12 px-2 md:px-8 lg:px-12">
+                    <h2 id="series-browse-results-title" class="text-2xl font-bold text-white mb-4">All Series</h2>
+                    <div id="series-browse-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 md:gap-6 justify-items-center">
+                        <!-- Series will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Results Page -->
+            <div id="search-page" class="hidden">
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-8 gap-4">
+                    <h1 id="search-page-title" class="text-3xl font-bold text-white">Search Results</h1>
+                    <form id="search-page-form" class="w-full md:max-w-xs">
+                        <input type="search" id="search-page-input" placeholder="Search movies & series..." class="w-full bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    </form>
+                </div>
+
+                <div id="search-results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <!-- Search results will be rendered here -->
+                </div>
+                <div id="search-empty-state" class="media-message hidden">
+                    <span class="media-message-icon" aria-hidden="true">○</span>
+                    <strong>No titles found</strong>
+                    <p>Try another title, person, or keyword.</p>
+                </div>
+            </div>
+
+            <!-- Legacy Browse Page (keeping for compatibility) -->
+            <div id="recommendations-page" class="hidden">
+                <h1 class="text-3xl font-bold text-white mb-6">Browse</h1>
+                
+                <!-- Genre Browsing Section -->
+                <section class="mb-12">
+                    <h2 class="text-2xl font-bold text-white mb-4">🎭 Browse by Genre</h2>
+                    <div id="genre-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <!-- Genre cards will be rendered here -->
+                    </div>
+                </section>
+
+                <!-- User's Playlists Section (visible when logged in) -->
+                <section id="user-playlists-section" class="mb-12 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-white">📁 Your Playlists</h2>
+                        <button type="button" id="create-playlist-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors">
+                            + Create Playlist
+                        </button>
+                    </div>
+                    <div id="user-playlists-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <!-- User playlists will be rendered here -->
+                    </div>
+                    <div id="user-playlists-empty" class="hidden text-center py-8">
+                        <p class="text-gray-400">No playlists yet.</p>
+                        <p class="text-gray-500 mt-2">Create your first playlist to organize your movies.</p>
+                    </div>
+                </section>
+
+                <!-- Recommendations Section (visible when logged in) -->
+                <section id="recommendations-section" class="mb-12 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-white">🔥 Recommended For You</h2>
+                        <button type="button" id="ai-recommendations-btn" class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-md text-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                            🔄 Generate Recommendations
+                        </button>
+                    </div>
+                    <div id="ai-recommendations-container">
+                        <div id="ai-recommendations-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                        </div>
+                        <div id="recommendations-empty" class="hidden text-center py-8">
+                            <p class="text-gray-400">No recommendations yet.</p>
+                            <p class="text-gray-500 mt-2">Add movies to your watched list and click Generate Recommendations.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Featured Movies by Genre (shown below) -->
+                <section id="genre-movies-section" class="hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 id="genre-movies-title" class="text-2xl font-bold text-white"></h2>
+                        <button type="button" id="close-genre-btn" class="text-gray-400 hover:text-white">✕ Close</button>
+                    </div>
+                    <div id="genre-movies-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                    </div>
+                </section>
+            </div>
+
+            <!-- Forum Page View -->
+            <div id="forum-page" class="hidden"></div>
+
+            <!-- Playlists Page View -->
+            <div id="playlists-page" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-3xl font-bold text-white">📁 My Playlists</h1>
+                    <button type="button" id="create-playlist-main-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors">
+                        + Create Playlist
+                    </button>
+                </div>
+                <div id="playlists-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <!-- User playlists will be rendered here -->
+                </div>
+                <div id="playlists-empty" class="hidden text-center py-12">
+                    <p class="text-gray-400 text-lg">No playlists yet.</p>
+                    <p class="text-gray-500 mt-2">Create your first playlist to organize your movies.</p>
+                </div>
+            </div>
+
+            <!-- My List Page View -->
+            <div id="my-list-page" class="hidden">
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+                    <h1 id="my-list-title" class="text-3xl font-bold text-white">My Movie List</h1>
+                    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto md:items-center">
+                        <button type="button" id="my-list-sort-rating-btn" class="px-4 py-2 rounded-md bg-gray-700 text-gray-200 hover:bg-gray-600 transition-colors whitespace-nowrap">
+                            Sort by Rating
+                        </button>
+                        <form id="my-list-search-form" class="w-full md:max-w-xs">
+                            <input type="search" id="my-list-search-input" placeholder="Search your list..." class="w-full bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </form>
+                    </div>
+                </div>
+
+                <div id="my-list-filters" class="flex flex-wrap items-center gap-2 mb-6"></div>
+                <div id="my-list-movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                </div>
+                <div id="my-list-empty-state" class="media-message hidden">
+                    <span class="media-message-icon" aria-hidden="true">○</span>
+                    <strong>Your list is ready for a first pick</strong>
+                    <p>Explore films and series, then add something you want to remember.</p>
+                </div>
+            </div>
+            <div id="loader" class="text-center py-16 hidden">
+                <p class="text-gray-400 text-lg">Loading movies...</p>
+            </div>
+
+            <!-- Actor Modal -->
+            <div id="actor-modal" style="z-index:99999;" class="fixed inset-0 hidden items-center justify-center p-4 modal-backdrop" aria-modal="true" role="dialog">
+                <div id="actor-modal-content" tabindex="-1" class="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto p-6">
+                </div>
+            </div>
+
+            <!-- Settings Page View -->
+            <div id="settings-page" class="hidden max-w-6xl mx-auto">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+                    <div>
+                        <h1 class="text-3xl font-bold text-white">Settings</h1>
+                        <p class="text-sm text-gray-400 mt-2">Account, profile, and app preferences.</p>
+                    </div>
+                    <button type="button" id="settings-save-profile-btn" class="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">Save Profile</button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-[120px_minmax(0,1fr)] gap-4">
+                    <aside class="settings-nav rounded-md bg-gray-900/40 p-1.5 lg:sticky lg:top-24 lg:self-start">
+                        <p class="px-1.5 pb-1 text-[10px] uppercase tracking-wide text-gray-500">Settings</p>
+                        <button type="button" class="settings-nav-btn w-full rounded-md px-1.5 py-1.5 text-left text-sm text-sky-200 hover:bg-gray-800" data-settings-tab="profile">Profile</button>
+                        <button type="button" class="settings-nav-btn active w-full rounded-md px-1.5 py-1.5 text-left text-sm text-sky-200 hover:bg-gray-800" data-settings-tab="account">Account</button>
+                        <button type="button" class="settings-nav-btn w-full rounded-md px-1.5 py-1.5 text-left text-sm text-sky-200 hover:bg-gray-800" data-settings-tab="media">Movies & Series</button>
+                        <button type="button" class="settings-nav-btn w-full rounded-md px-1.5 py-1.5 text-left text-sm text-sky-200 hover:bg-gray-800" data-settings-tab="lists">Lists</button>
+                        <button type="button" class="settings-nav-btn w-full rounded-md px-1.5 py-1.5 text-left text-sm text-sky-200 hover:bg-gray-800" data-settings-tab="notifications">Notifications</button>
+                        <button type="button" class="settings-nav-btn w-full rounded-md px-1.5 py-1.5 text-left text-sm text-sky-200 hover:bg-gray-800" data-settings-tab="import">Import Lists</button>
+                        <p class="px-1.5 pb-1 pt-2.5 text-[10px] uppercase tracking-wide text-gray-500">Apps</p>
+                        <button type="button" class="settings-nav-btn w-full rounded-md px-1.5 py-1.5 text-left text-sm text-sky-200 hover:bg-gray-800" data-settings-tab="apps">Apps</button>
+                        <button type="button" class="settings-nav-btn w-full rounded-md px-1.5 py-1.5 text-left text-sm text-sky-200 hover:bg-gray-800" data-settings-tab="developer">Developer</button>
+                    </aside>
+
+                    <div class="space-y-6">
+                        <section class="settings-panel hidden bg-gray-800 border border-gray-700 rounded-lg p-6" data-settings-panel="profile">
+                            <h2 class="text-xl font-bold text-white mb-5">Profile</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] gap-6">
+                                <div class="flex flex-col items-start gap-3">
+                                    <div id="settings-avatar-preview" class="w-24 h-24 rounded-md bg-gradient-to-br from-sky-500 to-red-500 text-white font-bold text-3xl flex items-center justify-center border border-gray-700 overflow-hidden">
+                                        <span id="settings-avatar-initials">U</span>
+                                    </div>
+                                    <button type="button" id="settings-clear-avatar-btn" class="text-sm text-gray-300 hover:text-white">Remove Photo</button>
+                                </div>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="settings-display-name" class="block text-sm text-gray-300 mb-1">Display Name</label>
+                                        <input type="text" id="settings-display-name" maxlength="40" class="w-full bg-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                    </div>
+                                    <div>
+                                        <label for="settings-bio" class="block text-sm text-gray-300 mb-1">Bio</label>
+                                        <textarea id="settings-bio" maxlength="180" rows="3" class="w-full bg-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"></textarea>
+                                    </div>
+                                    <div>
+                                        <label for="settings-avatar-file" class="block text-sm text-gray-300 mb-1">Profile Picture</label>
+                                        <input type="file" id="settings-avatar-file" accept="image/*" class="w-full text-sm text-gray-300 file:mr-3 file:rounded-md file:border-0 file:bg-gray-600 file:px-3 file:py-2 file:text-white hover:file:bg-gray-500">
+                                    </div>
+                                    <div>
+                                        <label for="settings-avatar-url" class="block text-sm text-gray-300 mb-1">Image URL</label>
+                                        <input type="url" id="settings-avatar-url" placeholder="https://..." class="w-full bg-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="settings-panel hidden bg-gray-800 border border-gray-700 rounded-lg p-6" data-settings-panel="media">
+                            <h2 class="text-xl font-bold text-white mb-5">Appearance</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="theme-select" class="block text-sm text-gray-300 mb-1">Theme</label>
+                                    <select id="theme-select" class="w-full bg-gray-700 text-white rounded-md px-3 py-2">
+                                        <option value="default">Default</option>
+                                        <option value="light">Light</option>
+                                        <option value="dark">Dark</option>
+                                    </select>
+                                </div>
+                                <label class="flex items-center justify-between gap-4 rounded-md bg-gray-900 border border-gray-700 px-4 py-3">
+                                    <span class="text-sm text-gray-200">Compact Cards</span>
+                                    <input type="checkbox" id="compact-cards-toggle" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-sky-500 focus:ring-sky-500">
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="settings-panel hidden bg-gray-800 border border-gray-700 rounded-lg p-6" data-settings-panel="lists">
+                            <h2 class="text-xl font-bold text-white mb-5">Lists & Ratings</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="rating-system-select" class="block text-sm text-gray-300 mb-1">Rating System</label>
+                                    <select id="rating-system-select" class="w-full bg-gray-700 text-white rounded-md px-3 py-2">
+                                        <option value="1-10">1-10 numeric</option>
+                                        <option value="1-100">1-100 numeric</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="default-add-status-select" class="block text-sm text-gray-300 mb-1">Default Add Status</label>
+                                    <select id="default-add-status-select" class="w-full bg-gray-700 text-white rounded-md px-3 py-2">
+                                        <option value="planning">Planning</option>
+                                        <option value="watching">Watching</option>
+                                        <option value="watched">Watched</option>
+                                        <option value="dropped">Dropped</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="settings-panel bg-gray-800 border border-gray-700 rounded-lg p-6" data-settings-panel="account">
+                            <h2 class="text-xl font-bold text-white mb-5">Account</h2>
+                            <div class="space-y-6">
+                                <div class="rounded-md bg-gray-900 border border-gray-700 p-4">
+                                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div>
+                                            <h3 class="text-white font-semibold">Password</h3>
+                                            <p class="text-sm text-gray-400 mt-1">Send a password reset link to your account email.</p>
+                                        </div>
+                                        <button type="button" id="settings-change-password-btn" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-md text-sm font-medium">Change Password</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="settings-panel hidden bg-gray-800 border border-gray-700 rounded-lg p-6" data-settings-panel="account">
+                            <h2 class="text-xl font-bold text-white mb-5">Privacy</h2>
+                            <div class="space-y-4">
+                                <label class="flex items-center justify-between gap-4 rounded-md bg-gray-900 border border-gray-700 px-4 py-3">
+                                    <span class="text-sm text-gray-200">Public Profile</span>
+                                    <input type="checkbox" id="public-profile-toggle" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-sky-500 focus:ring-sky-500">
+                                </label>
+                                <label class="flex items-center justify-between gap-4 rounded-md bg-gray-900 border border-gray-700 px-4 py-3">
+                                    <span class="text-sm text-gray-200">Show Email On Profile</span>
+                                    <input type="checkbox" id="show-email-toggle" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-sky-500 focus:ring-sky-500">
+                                </label>
+                                <label class="flex items-center justify-between gap-4 rounded-md bg-gray-900 border border-gray-700 px-4 py-3">
+                                    <span><span class="block text-sm text-gray-200">Share My Activity</span><span class="block text-xs text-gray-500 mt-1">Publish meaningful watch, rating, and review updates.</span></span>
+                                    <input type="checkbox" id="share-activity-toggle" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-sky-500 focus:ring-sky-500" checked>
+                                </label>
+                                <div>
+                                    <label for="activity-visibility-select" class="block text-sm text-gray-300 mb-1">Activity Visibility</label>
+                                    <select id="activity-visibility-select" class="w-full bg-gray-700 text-white rounded-md px-3 py-2">
+                                        <option value="public">Everyone</option>
+                                        <option value="followers">Followers</option>
+                                        <option value="private">Only Me</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="settings-panel hidden bg-gray-800 border border-gray-700 rounded-lg p-6" data-settings-panel="notifications">
+                            <h2 class="text-xl font-bold text-white mb-5">Notifications</h2>
+                            <div class="space-y-3">
+                                <label class="flex items-center justify-between gap-4 rounded-md bg-gray-900 border border-gray-700 px-4 py-3">
+                                    <span class="text-sm text-gray-200">Recommendations</span>
+                                    <input type="checkbox" id="notify-recommendations-toggle" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-sky-500 focus:ring-sky-500">
+                                </label>
+                                <label class="flex items-center justify-between gap-4 rounded-md bg-gray-900 border border-gray-700 px-4 py-3">
+                                    <span class="text-sm text-gray-200">Follows</span>
+                                    <input type="checkbox" id="notify-follows-toggle" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-sky-500 focus:ring-sky-500">
+                                </label>
+                                <label class="flex items-center justify-between gap-4 rounded-md bg-gray-900 border border-gray-700 px-4 py-3">
+                                    <span class="text-sm text-gray-200">New Releases</span>
+                                    <input type="checkbox" id="notify-releases-toggle" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-sky-500 focus:ring-sky-500">
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="settings-panel hidden bg-gray-800 border border-gray-700 rounded-lg p-6" data-settings-panel="import">
+                            <h2 class="text-xl font-bold text-white mb-5">Import Lists</h2>
+                            <div class="space-y-5">
+                                <div>
+                                    <label for="settings-import-csv-file" class="block text-sm text-gray-300 mb-2">CSV File</label>
+                                    <input type="file" id="settings-import-csv-file" accept=".csv,text/csv" class="w-full text-sm text-gray-300 file:mr-3 file:rounded-md file:border-0 file:bg-gray-600 file:px-3 file:py-2 file:text-white hover:file:bg-gray-500">
+                                </div>
+                                <div class="rounded-md border border-gray-700 bg-gray-900 p-4 text-sm text-gray-400">
+                                    <p class="text-gray-200 font-medium mb-2">Supported columns</p>
+                                    <p><span class="text-sky-300">title</span> is required unless you provide <span class="text-sky-300">tmdb_id</span>. Optional columns: <span class="text-sky-300">type</span> movie/series, <span class="text-sky-300">status</span>, <span class="text-sky-300">rating</span>, <span class="text-sky-300">tmdb_id</span>.</p>
+                                </div>
+                                <div id="settings-import-csv-summary" class="hidden rounded-md border border-gray-700 bg-gray-900 p-4 text-sm text-gray-300"></div>
+                                <button type="button" id="settings-import-csv-btn" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled>Import CSV</button>
+                            </div>
+                        </section>
+
+                        <section class="settings-panel hidden bg-gray-800 border border-gray-700 rounded-lg p-6" data-settings-panel="apps">
+                            <h2 class="text-xl font-bold text-white mb-5">Apps</h2>
+                            <p class="text-sm text-gray-400">Connected app settings will appear here.</p>
+                        </section>
+
+                        <section class="settings-panel hidden bg-gray-800 border border-gray-700 rounded-lg p-6" data-settings-panel="developer">
+                            <h2 class="text-xl font-bold text-white mb-5">Developer</h2>
+                            <p class="text-sm text-gray-400 mb-4">Export or reset local app settings.</p>
+                            <div class="flex flex-wrap gap-3">
+                                <button type="button" id="export-settings-btn" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm">Export Settings</button>
+                                <button type="button" id="reset-settings-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm">Reset Settings</button>
+                            </div>
+                        </section>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Profile Page View -->
+            <div id="user-profile-page" class="hidden -mx-4 md:-mx-8 -mt-8 bg-gray-950 min-h-screen">
+                <div class="relative h-64 md:h-80 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 overflow-hidden">
+                    <div class="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_30%_20%,#0ea5e9,transparent_32%),radial-gradient(circle_at_70%_10%,#ef4444,transparent_28%)]"></div>
+                    <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-gray-950 to-transparent"></div>
+                    <div class="relative h-full max-w-7xl mx-auto px-6 flex items-end gap-6 pb-8">
+                        <div id="profile-avatar-large" class="w-28 h-28 md:w-36 md:h-36 rounded-md bg-gradient-to-br from-sky-500 to-red-500 text-white font-bold text-4xl flex items-center justify-center shadow-xl border border-gray-700">
+                            <span id="profile-initials-large">U</span>
+                        </div>
+                        <div class="pb-2 min-w-0">
+                            <h1 id="profile-user-name" class="text-2xl md:text-3xl font-bold text-white truncate">User Name</h1>
+                            <p id="profile-user-email" class="hidden text-sm text-gray-400 truncate"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 border-y border-gray-800">
+                    <div class="profile-tabs max-w-7xl mx-auto px-6 flex gap-8 overflow-x-auto text-sm font-semibold" role="tablist" aria-label="Profile sections">
+                        <button type="button" id="profile-tab-overview" class="profile-tab is-active" role="tab" aria-selected="true" aria-controls="profile-panel-overview" data-profile-tab="overview">Overview</button>
+                        <button type="button" id="profile-tab-movies" class="profile-tab" role="tab" aria-selected="false" aria-controls="profile-panel-movies" data-profile-tab="movies">Movie List</button>
+                        <button type="button" id="profile-tab-series" class="profile-tab" role="tab" aria-selected="false" aria-controls="profile-panel-series" data-profile-tab="series">Series List</button>
+                        <button type="button" id="profile-tab-stats" class="profile-tab" role="tab" aria-selected="false" aria-controls="profile-panel-stats" data-profile-tab="stats">Stats</button>
+                        <button type="button" id="profile-tab-activity" class="profile-tab" role="tab" aria-selected="false" aria-controls="profile-panel-activity" data-profile-tab="activity">Activity</button>
+                    </div>
+                </div>
+
+                <div id="user-profile-content" class="max-w-7xl mx-auto px-6 py-8">
+                    <section id="profile-panel-overview" class="profile-panel space-y-8" role="tabpanel" aria-labelledby="profile-tab-overview" data-profile-panel="overview">
+                        <div class="rounded-md bg-gray-900 border border-gray-800 p-5">
+                            <p id="profile-bio" class="text-sky-200 text-sm">Build your Blist, track your progress, and keep discovering what is next.</p>
+                        </div>
+                        <div class="profile-summary-grid">
+                            <div class="profile-stat-card"><span>Total titles</span><strong id="profile-overview-total">0</strong></div>
+                            <div class="profile-stat-card"><span>Hours watched</span><strong id="profile-overview-hours">0</strong></div>
+                            <div class="profile-stat-card"><span>Top genre</span><strong id="profile-overview-genre">—</strong></div>
+                            <div class="profile-stat-card"><span>Average score</span><strong id="profile-overview-score">—</strong></div>
+                        </div>
+                        <div class="profile-dashboard-section">
+                            <h2 class="profile-panel-title">Your recent activity</h2>
+                            <div id="profile-overview-activity" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                        </div>
+                    </section>
+
+                    <section id="profile-panel-movies" class="profile-panel profile-dashboard-section hidden" role="tabpanel" aria-labelledby="profile-tab-movies" data-profile-panel="movies">
+                        <h2 class="profile-panel-title">Your movies</h2>
+                        <div id="profile-movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+                    </section>
+
+                    <section id="profile-panel-series" class="profile-panel profile-dashboard-section hidden" role="tabpanel" aria-labelledby="profile-tab-series" data-profile-panel="series">
+                        <h2 class="profile-panel-title">Your series</h2>
+                        <div id="profile-tv-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+                    </section>
+
+                    <section id="profile-panel-stats" class="profile-panel space-y-8 hidden" role="tabpanel" aria-labelledby="profile-tab-stats" data-profile-panel="stats">
+                        <div class="profile-summary-grid">
+                            <div class="profile-stat-card"><span>Total hours</span><strong id="profile-total-hours">0</strong></div>
+                            <div class="profile-stat-card"><span>Movie hours</span><strong id="profile-movie-hours">0</strong></div>
+                            <div class="profile-stat-card"><span>Series hours</span><strong id="profile-series-hours">0</strong></div>
+                            <div class="profile-stat-card"><span>Episodes watched</span><strong id="profile-episodes-watched">0</strong></div>
+                        </div>
+                        <div class="profile-dashboard-section">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div class="profile-stat-cluster">
+                                    <div><strong id="profile-total-titles">0</strong><span>Total titles</span></div>
+                                    <div><strong id="profile-days-watched">0</strong><span>Days watched</span></div>
+                                    <div><strong id="profile-mean-score">—</strong><span>Mean score</span></div>
+                                </div>
+                                <div class="profile-stat-cluster">
+                                    <div><strong id="stat-movies-watched">0</strong><span>Watched</span></div>
+                                    <div><strong id="stat-movies-watching">0</strong><span>Watching</span></div>
+                                    <div><strong id="stat-movies-planned">0</strong><span>Planned</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-dashboard-section">
+                            <h2 class="profile-panel-title">Most watched genres</h2>
+                            <div id="profile-genre-overview"></div>
+                        </div>
+                        <div class="profile-dashboard-section">
+                            <h2 class="profile-panel-title">Rating distribution</h2>
+                            <div id="profile-rating-distribution" class="profile-rating-distribution"></div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div id="profile-top-actor" class="profile-dashboard-section"></div>
+                            <div id="profile-top-director" class="profile-dashboard-section"></div>
+                        </div>
+                        <p id="profile-stats-enrichment" class="hidden text-sm text-gray-400" role="status"></p>
+                    </section>
+
+                    <section id="profile-panel-activity" class="profile-panel profile-dashboard-section hidden" role="tabpanel" aria-labelledby="profile-tab-activity" data-profile-panel="activity">
+                        <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+                            <div><h2 class="profile-panel-title mb-1">Community activity</h2><span id="profile-following-count" class="text-xs text-gray-400">0 following</span></div>
+                            <div class="activity-feed-toggle" role="group" aria-label="Activity audience">
+                                <button id="profile-activity-following" type="button" class="is-active" data-profile-activity-filter="following">Following</button>
+                                <button id="profile-activity-global" type="button" data-profile-activity-filter="global">Global</button>
+                            </div>
+                        </div>
+                        <div id="profile-activity-feed" class="activity-feed-list" aria-live="polite"></div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Notifications Page View -->
+            <div id="notifications-page" class="hidden max-w-2xl mx-auto bg-gray-800 p-8 rounded-lg">
+                <h1 class="text-3xl font-bold text-white mb-6">Notifications</h1>
+                <div id="notifications-content" class="space-y-4">
+                    <div class="bg-gray-700 p-4 rounded-lg border-l-4 border-sky-500">
+                        <p class="text-white font-semibold">New Recommendations</p>
+                        <p class="text-sm text-gray-400">Fresh movie suggestions based on your list</p>
+                        <p class="text-xs text-gray-500 mt-2">3 hours ago</p>
+                    </div>
+                    <div class="bg-gray-700 p-4 rounded-lg border-l-4 border-purple-500">
+                        <p class="text-white font-semibold">Popular Release</p>
+                        <p class="text-sm text-gray-400">A new movie you might enjoy is now available</p>
+                        <p class="text-xs text-gray-500 mt-2">1 day ago</p>
+                    </div>
+                    <p class="text-center text-gray-400 text-sm mt-8">No more notifications</p>
+                </div>
+            </div>
+
+            <!-- Login Required View -->
+            <div id="login-required-page" class="hidden text-center py-16 max-w-lg mx-auto bg-gray-800 p-8 rounded-lg">
+                <h2 class="text-2xl font-bold text-white mb-4">Login Required</h2>
+                <p class="text-gray-400 mb-6">You need to log in to view this page and save your movie list.</p>
+            </div>
+
+            <!-- Auth Pages (Signup/Login) -->
+            <div id="auth-page" class="hidden max-w-md mx-auto bg-gray-800 p-8 rounded-lg">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-white mb-2">blist</h1>
+                    <p class="text-gray-400">Your Ultimate Entertainment Hub</p>
+                </div>
+
+                <!-- Login Form -->
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Email or Username</label>
+                        <input type="text" id="login-email" required class="w-full bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="you@example.com or username">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                        <input type="password" id="login-password" required class="w-full bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="••••••••">
+                    </div>
+                    <div class="text-right">
+                        <button type="button" id="forgot-password-btn" class="text-sm text-sky-400 hover:text-sky-300 transition-colors">Forgot password?</button>
+                    </div>
+                    <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-medium py-2 rounded-md transition-colors">Login</button>
+                </form>
+
+                <div class="relative my-6">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-600"></div></div>
+                    <div class="relative flex justify-center text-sm"><span class="px-2 bg-gray-800 text-gray-400">or</span></div>
+                </div>
+
+                <!-- Signup Form (initially hidden) -->
+                <form id="signup-form" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                        <input type="email" id="signup-email" required class="w-full bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="you@example.com">
+                        <p id="signup-email-error" class="text-red-500 text-sm mt-1 hidden"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                        <input type="text" id="signup-username" required class="w-full bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Choose a username">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                        <input type="password" id="signup-password" required class="w-full bg-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="••••••••">
+                        <p class="text-gray-400 text-xs mt-1">At least 6 characters</p>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="signup-mailing" class="w-4 h-4 rounded bg-gray-700 border-gray-600">
+                        <label for="signup-mailing" class="ml-2 text-sm text-gray-300">Subscribe to mailing list</label>
+                    </div>
+                    <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-medium py-2 rounded-md transition-colors">Sign Up</button>
+                </form>
+
+                <!-- Toggle between login and signup -->
+                <div class="mt-6 text-center">
+                    <p class="text-gray-400 text-sm" id="auth-toggle-text">Don't have an account? <button type="button" id="show-signup-btn" class="text-sky-400 hover:text-sky-300 font-medium">Sign up</button></p>
+                    <p class="text-gray-400 text-sm hidden" id="signup-toggle-text">Already have an account? <button type="button" id="show-login-btn" class="text-sky-400 hover:text-sky-300 font-medium">Login</button></p>
+                </div>
+
+                <!-- Error message -->
+                <p id="auth-error" class="text-red-500 text-sm mt-4 text-center hidden"></p>
+                <p id="auth-loading" class="text-gray-400 text-sm mt-4 text-center hidden">Loading...</p>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-900 border-t border-gray-700 mt-auto">
+            <div class="container mx-auto py-4 px-4 sm:px-6 lg:px-8 text-center text-gray-500 text-sm">
+                <p>&copy; 2026 blist. All rights reserved.</p>
+                <p class="mt-2 text-xs text-gray-600">Data provided by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-300 transition-colors">The Movie Database (TMDb)</a> and <a href="https://www.thetvdb.com/" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-300 transition-colors">TheTVDB</a></p>
+            </div>
+        </footer>
+
+        <!-- Create Playlist Modal -->
+        <div id="create-playlist-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-6 modal-backdrop">
+            <div class="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 relative">
+                <button id="close-playlist-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                <h2 class="text-2xl font-bold mb-4">Create New Playlist</h2>
+                <form id="create-playlist-form">
+                    <div class="mb-4">
+                        <label for="playlist-name" class="block text-sm font-medium mb-2">Playlist Name</label>
+                        <input type="text" id="playlist-name" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g., Favorites, Watchlist" required maxlength="50">
+                    </div>
+                    <div class="mb-4">
+                        <label for="playlist-description" class="block text-sm font-medium mb-2">Description (Optional)</label>
+                        <textarea id="playlist-description" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none" rows="3" placeholder="Add a description for your playlist" maxlength="200"></textarea>
+                    </div>
+                    <div class="mb-6">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="playlist-public" class="mr-2 rounded bg-gray-700 border-gray-600 text-red-500 focus:ring-red-500">
+                            <span class="text-sm">Make this playlist public</span>
+                        </label>
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" id="cancel-playlist-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">Create Playlist</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Movie Detail Modal -->
+        <div id="movie-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-6 modal-backdrop" role="dialog" aria-modal="true" aria-label="Media details">
+            <div id="modal-content" class="bg-gray-800 rounded-lg shadow-xl w-full max-w-5xl md:h-[720px] max-h-[92vh] flex flex-col md:flex-row overflow-hidden relative p-0" tabindex="-1">
+            </div>
+        </div>
+    </div>
+
+    <!-- Runtime config injection (config.js should handle this in new structure) -->
+    <script src="config.local.js"></script>
+    <script src="config.js"></script>
+    <script type="module" src="main.js"></script>
+</body>
+</html>
